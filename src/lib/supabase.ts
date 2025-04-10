@@ -3,20 +3,19 @@ import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/supabase';
 
 // Check if environment variables are defined
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bktqobrttcqgwvbodcjh.supabase.co';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Create a conditional client to handle missing env variables
 let supabase: ReturnType<typeof createClient<Database>>;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Supabase environment variables are missing.');
-  console.error('Please ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your environment.');
+if (!supabaseKey) {
+  console.error('Supabase anon key is missing.');
+  console.error('Please ensure VITE_SUPABASE_ANON_KEY is set in your environment.');
   
   // Create a mock client that won't throw errors but won't work either
-  // Using a valid URL format but with a domain that won't resolve
   supabase = createClient<Database>(
-    'https://example-placeholder-supabase-url.com',
+    supabaseUrl, // We now have a fallback URL
     'placeholder-key'
   );
   
