@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Projects from "./pages/Projects";
+import ProjectDetails from "./pages/ProjectDetails";
 import Resources from "./pages/Resources";
 import Issues from "./pages/Issues";
 import NotFound from "./pages/NotFound";
@@ -25,6 +26,7 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/projects" element={<Projects />} />
+              <Route path="/projects/:projectId" element={<ProjectDetails />} />
               <Route path="/resources" element={<Resources />} />
               <Route path="/issues" element={<Issues />} />
               {/* Additional routes would be added here */}

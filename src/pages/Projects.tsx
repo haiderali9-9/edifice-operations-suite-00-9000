@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
 import { projects } from "@/data/mockData";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,10 +24,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Project } from "@/types";
 import { Search, Plus, Filter, MoreHorizontal } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const Projects = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   // Filter projects based on search term and status filter
   const filteredProjects = projects.filter((project) => {
@@ -63,6 +67,13 @@ const Projects = () => {
     }
   };
 
+  const handleNewProject = () => {
+    toast({
+      title: "Feature Coming Soon",
+      description: "The new project creation functionality will be implemented in the next step.",
+    });
+  };
+
   return (
     <PageLayout>
       <div className="mb-6 flex justify-between items-center">
@@ -72,7 +83,7 @@ const Projects = () => {
             Manage and monitor all your construction projects
           </p>
         </div>
-        <Button className="bg-construction-700 hover:bg-construction-800">
+        <Button className="bg-construction-700 hover:bg-construction-800" onClick={handleNewProject}>
           <Plus className="h-4 w-4 mr-2" /> New Project
         </Button>
       </div>
@@ -135,7 +146,7 @@ const Projects = () => {
             </TableHeader>
             <TableBody>
               {filteredProjects.map((project) => (
-                <TableRow key={project.id}>
+                <TableRow key={project.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/projects/${project.id}`)}>
                   <TableCell className="font-medium">{project.name}</TableCell>
                   <TableCell>{project.client}</TableCell>
                   <TableCell>{project.location}</TableCell>
@@ -157,17 +168,46 @@ const Projects = () => {
                   <TableCell>{getStatusBadge(project.status)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <MoreHorizontal className="h-4 w-4" />
                           <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit Project</DropdownMenuItem>
-                        <DropdownMenuItem>View Tasks</DropdownMenuItem>
-                        <DropdownMenuItem>View Documents</DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/projects/${project.id}`);
+                        }}>
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          toast({
+                            title: "Feature Coming Soon",
+                            description: "Edit Project functionality will be implemented in the next step.",
+                          });
+                        }}>
+                          Edit Project
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          toast({
+                            title: "Feature Coming Soon",
+                            description: "View Tasks functionality will be implemented in the next step.",
+                          });
+                        }}>
+                          View Tasks
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          toast({
+                            title: "Feature Coming Soon",
+                            description: "View Documents functionality will be implemented in the next step.",
+                          });
+                        }}>
+                          View Documents
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

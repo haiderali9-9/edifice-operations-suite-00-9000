@@ -28,34 +28,36 @@ const ProjectsOverview = ({ projects }: ProjectsOverviewProps) => {
       </CardHeader>
       <CardContent className="space-y-5">
         {sortedProjects.map((project) => (
-          <div key={project.id} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-construction-100 p-2 rounded">
-                  <Building className="h-4 w-4 text-construction-700" />
-                </div>
-                <div>
-                  <h3 className="font-medium">{project.name}</h3>
-                  <div className="flex items-center text-xs text-gray-500">
-                    <MapPin className="h-3 w-3 mr-1" />
-                    {project.location}
+          <Link to={`/projects/${project.id}`} key={project.id} className="block hover:bg-gray-50 rounded-md p-2 -mx-2 transition-colors">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="bg-construction-100 p-2 rounded">
+                    <Building className="h-4 w-4 text-construction-700" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">{project.name}</h3>
+                    <div className="flex items-center text-xs text-gray-500">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {project.location}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center">
+                  <Calendar className="h-3 w-3 mr-1 text-gray-400" />
+                  <span className="text-xs text-gray-600">
+                    {new Date(project.endDate).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center">
-                <Calendar className="h-3 w-3 mr-1 text-gray-400" />
-                <span className="text-xs text-gray-600">
-                  {new Date(project.endDate).toLocaleDateString()}
+              <div className="flex items-center gap-4">
+                <Progress value={project.completion} className="h-2" />
+                <span className="text-sm font-medium w-12 text-right">
+                  {project.completion}%
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <Progress value={project.completion} className="h-2" />
-              <span className="text-sm font-medium w-12 text-right">
-                {project.completion}%
-              </span>
-            </div>
-          </div>
+          </Link>
         ))}
       </CardContent>
     </Card>
