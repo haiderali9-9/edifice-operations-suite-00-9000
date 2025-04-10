@@ -4,33 +4,10 @@ import { Database } from '@/types/supabase';
 
 // Check if environment variables are defined
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://bktqobrttcqgwvbodcjh.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrdHFvYnJ0dGNxZ3d2Ym9kY2poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDk5NzYsImV4cCI6MjA1OTg4NTk3Nn0.mv8bVB3tRQx4wyaxmfIXXdx4ihs2vEk1Aik2xUHuSjg';
 
-// Create a conditional client to handle missing env variables
-let supabase: ReturnType<typeof createClient<Database>>;
-
-if (!supabaseKey) {
-  console.error('Supabase anon key is missing.');
-  console.error('Please ensure VITE_SUPABASE_ANON_KEY is set in your environment.');
-  
-  // Create a mock client that won't throw errors but won't work either
-  supabase = createClient<Database>(
-    supabaseUrl, // We now have a fallback URL
-    'placeholder-key'
-  );
-  
-  // Override methods to prevent actual API calls and return empty results
-  const mockResponse = { data: null, error: { message: 'Supabase not configured' } };
-  supabase.from = () => ({
-    select: () => Promise.resolve(mockResponse),
-    insert: () => Promise.resolve(mockResponse),
-    update: () => Promise.resolve(mockResponse),
-    delete: () => Promise.resolve(mockResponse),
-    // Add any other methods you use
-  }) as any;
-} else {
-  // Create the real client with actual credentials
-  supabase = createClient<Database>(supabaseUrl, supabaseKey);
-}
+// Create Supabase client
+const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
 export { supabase };
