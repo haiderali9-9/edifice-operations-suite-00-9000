@@ -2,7 +2,7 @@
 import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
-import { projects, tasks, issues } from "@/data/mockData";
+import { projects, tasks, issues, expenses } from "@/data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -49,6 +49,9 @@ const ProjectDetails = () => {
   // Calculate stats
   const completedTasks = projectTasks.filter((task) => task.status === "Completed").length;
   const criticalIssues = projectIssues.filter((issue) => issue.priority === "Critical" && issue.status !== "Resolved").length;
+  
+  // Get project expenses
+  const projectExpenses = expenses.filter((expense) => expense.projectId === project.id);
   
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -148,7 +151,7 @@ const ProjectDetails = () => {
                 <p className="text-sm text-gray-500">Budget</p>
                 <p className="text-lg font-medium">{formatCurrency(project.budget)}</p>
                 <p className="text-xs text-gray-500">
-                  {formatCurrency(project.expenses || project.budget * 0.7)} spent
+                  {formatCurrency(projectExpenses.reduce((sum, expense) => sum + expense.amount, 0))} spent
                 </p>
               </div>
             </div>
