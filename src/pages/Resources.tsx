@@ -1,7 +1,6 @@
 
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
-import { resources } from "@/data/mockData";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -23,18 +22,76 @@ import { Badge } from "@/components/ui/badge";
 import { Resource } from "@/types";
 import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
+import ResourceStatus from "@/components/dashboard/ResourceStatus";
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  
+  // Fetch resources from Supabase
+  const { data: resources, isLoading: resourcesLoading, error } = useQuery({
+    queryKey: ['resources'],
+    queryFn: async () => {
+      // First fetch all resources
+      const { data: resourcesData, error: resourcesError } = await supabase
+        .from('resources')
+        .select('*');
+      
+      if (resourcesError) {
+        throw resourcesError;
+      }
+      
+      // Then fetch all allocations
+      const { data: allocationsData, error: allocationsError } = await supabase
+        .from('resource_allocations')
+        .select('*');
+      
+      if (allocationsError) {
+        throw allocationsError;
+      }
+      
+      // Combine the data to match our Resource type
+      return resourcesData.map(resource => ({
+        ...resource,
+        id: resource.id,
+        name: resource.name,
+        type: resource.type as 'Material' | 'Equipment' | 'Labor',
+        quantity: resource.quantity,
+        unit: resource.unit,
+        cost: resource.cost,
+        status: resource.status,
+        allocated: allocationsData
+          .filter(allocation => allocation.resource_id === resource.id)
+          .map(allocation => ({
+            projectId: allocation.project_id,
+            quantity: allocation.quantity
+          }))
+      })) as Resource[];
+    },
+  });
+  
+  // Show error if query failed
+  React.useEffect(() => {
+    if (error) {
+      toast.error("Failed to load resources", {
+        description: "There was an error loading resources from the database."
+      });
+      console.error("Error loading resources:", error);
+    }
+  }, [error]);
 
   // Filter resources based on search term and type filter
-  const filteredResources = resources.filter((resource) => {
-    const matchesSearch = resource.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter ? resource.type === typeFilter : true;
+  const filteredResources = resources
+    ? resources.filter((resource) => {
+        const matchesSearch = resource.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesType = typeFilter ? resource.type === typeFilter : true;
 
-    return matchesSearch && matchesType;
-  });
+        return matchesSearch && matchesType;
+      })
+    : [];
 
   const getStatusBadge = (status: Resource["status"]) => {
     switch (status) {
@@ -81,6 +138,12 @@ const Resources = () => {
     0
   );
 
+  const handleAddResource = () => {
+    toast.info("Feature Coming Soon", {
+      description: "The add resource functionality will be implemented in a future update."
+    });
+  };
+  
   return (
     <PageLayout>
       <div className="mb-6 flex justify-between items-center">
@@ -90,7 +153,7 @@ const Resources = () => {
             Manage materials, equipment, and labor resources
           </p>
         </div>
-        <Button className="bg-construction-700 hover:bg-construction-800">
+        <Button className="bg-construction-700 hover:bg-construction-800" onClick={handleAddResource}>
           <Plus className="h-4 w-4 mr-2" /> Add Resource
         </Button>
       </div>
@@ -104,7 +167,7 @@ const Resources = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Resources</p>
-                <h3 className="text-2xl font-bold">{resources.length}</h3>
+                <h3 className="text-2xl font-bold">{resources ? resources.length : '-'}</h3>
               </div>
             </div>
           </CardContent>
@@ -117,7 +180,7 @@ const Resources = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Resource Utilization</p>
-                <h3 className="text-2xl font-bold">{totalAllocation} Units</h3>
+                <h3 className="text-2xl font-bold">{resourcesLoading ? '...' : totalAllocation} Units</h3>
               </div>
             </div>
           </CardContent>
@@ -130,7 +193,7 @@ const Resources = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total Value</p>
-                <h3 className="text-2xl font-bold">{formatCurrency(totalValue)}</h3>
+                <h3 className="text-2xl font-bold">{resourcesLoading ? '...' : formatCurrency(totalValue)}</h3>
               </div>
             </div>
           </CardContent>
@@ -197,38 +260,46 @@ const Resources = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredResources.map((resource) => (
-                    <TableRow key={resource.id}>
-                      <TableCell className="font-medium">{resource.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          {getResourceTypeIcon(resource.type)}
-                          {resource.type}
-                        </div>
-                      </TableCell>
-                      <TableCell>{resource.quantity}</TableCell>
-                      <TableCell>{resource.unit}</TableCell>
-                      <TableCell>{formatCurrency(resource.cost)} / {resource.unit}</TableCell>
-                      <TableCell>{getStatusBadge(resource.status)}</TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem>View Details</DropdownMenuItem>
-                            <DropdownMenuItem>Edit Resource</DropdownMenuItem>
-                            <DropdownMenuItem>View Allocation</DropdownMenuItem>
-                            <DropdownMenuItem>Order More</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                  {resourcesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="h-24 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                        <p className="text-sm text-gray-500 mt-2">Loading resources...</p>
                       </TableCell>
                     </TableRow>
-                  ))}
-                  {filteredResources.length === 0 && (
+                  ) : filteredResources.length > 0 ? (
+                    filteredResources.map((resource) => (
+                      <TableRow key={resource.id}>
+                        <TableCell className="font-medium">{resource.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            {getResourceTypeIcon(resource.type)}
+                            {resource.type}
+                          </div>
+                        </TableCell>
+                        <TableCell>{resource.quantity}</TableCell>
+                        <TableCell>{resource.unit}</TableCell>
+                        <TableCell>{formatCurrency(resource.cost)} / {resource.unit}</TableCell>
+                        <TableCell>{getStatusBadge(resource.status)}</TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem>View Details</DropdownMenuItem>
+                              <DropdownMenuItem>Edit Resource</DropdownMenuItem>
+                              <DropdownMenuItem>View Allocation</DropdownMenuItem>
+                              <DropdownMenuItem>Order More</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center py-10 text-gray-500">
                         No resources found matching your filters
@@ -242,18 +313,7 @@ const Resources = () => {
         </TabsContent>
         
         <TabsContent value="allocation">
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-12 px-4">
-                <Box className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-lg font-medium mb-2">Resource Allocation View</h3>
-                <p className="text-gray-500 max-w-md mx-auto">
-                  This section will display detailed allocation of resources across different projects.
-                  This feature is in development and will be available soon.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <ResourceStatus resources={filteredResources} isLoading={resourcesLoading} />
         </TabsContent>
       </Tabs>
     </PageLayout>

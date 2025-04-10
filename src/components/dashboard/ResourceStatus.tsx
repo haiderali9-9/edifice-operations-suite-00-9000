@@ -10,20 +10,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
 
 interface ResourceStatusProps {
-  resources: Resource[];
+  resources?: Resource[];
+  isLoading?: boolean;
 }
 
-const ResourceStatus = ({ resources }: ResourceStatusProps) => {
+const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
   // Sort resources by status (critical first)
-  const sortedResources = [...resources].sort((a, b) => {
-    if (a.status === "Out of Stock" && b.status !== "Out of Stock") return -1;
-    if (a.status !== "Out of Stock" && b.status === "Out of Stock") return 1;
-    if (a.status === "Low Stock" && b.status !== "Low Stock") return -1;
-    if (a.status !== "Low Stock" && b.status === "Low Stock") return 1;
-    return 0;
-  });
+  const sortedResources = resources 
+    ? [...resources].sort((a, b) => {
+        if (a.status === "Out of Stock" && b.status !== "Out of Stock") return -1;
+        if (a.status !== "Out of Stock" && b.status === "Out of Stock") return 1;
+        if (a.status === "Low Stock" && b.status !== "Low Stock") return -1;
+        if (a.status !== "Low Stock" && b.status === "Low Stock") return 1;
+        return 0;
+      })
+    : [];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -44,28 +50,42 @@ const ResourceStatus = ({ resources }: ResourceStatusProps) => {
         <CardTitle className="text-lg font-medium">Resource Status</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Resource</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead className="text-right">Available</TableHead>
-              <TableHead className="text-right">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedResources.map((resource) => (
-              <TableRow key={resource.id}>
-                <TableCell className="font-medium">{resource.name}</TableCell>
-                <TableCell>{resource.type}</TableCell>
-                <TableCell className="text-right">
-                  {resource.quantity - resource.allocated.reduce((sum, a) => sum + a.quantity, 0)} / {resource.quantity} {resource.unit}
-                </TableCell>
-                <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-8 w-8 text-gray-400 animate-spin" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Resource</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="text-right">Available</TableHead>
+                <TableHead className="text-right">Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {sortedResources.length > 0 ? (
+                sortedResources.map((resource) => (
+                  <TableRow key={resource.id}>
+                    <TableCell className="font-medium">{resource.name}</TableCell>
+                    <TableCell>{resource.type}</TableCell>
+                    <TableCell className="text-right">
+                      {resource.quantity - resource.allocated.reduce((sum, a) => sum + a.quantity, 0)} / {resource.quantity} {resource.unit}
+                    </TableCell>
+                    <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                    No resources available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
