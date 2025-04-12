@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -70,7 +69,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
 
       if (error) throw error;
 
-      const formattedResources = data.map(item => ({
+      const formattedResources: ProjectResource[] = data.map(item => ({
         id: item.id,
         quantity: item.quantity,
         resource: item.resources as Resource
