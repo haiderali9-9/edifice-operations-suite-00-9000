@@ -2,6 +2,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { 
   LayoutDashboard, 
   Building, 
@@ -76,6 +78,17 @@ const navItems: NavItem[] = [
 
 const Sidebar = () => {
   const { pathname } = useLocation();
+  const { profile } = useAuth();
+
+  const getInitials = () => {
+    if (profile?.first_name && profile?.last_name) {
+      return `${profile.first_name.charAt(0)}${profile.last_name.charAt(0)}`;
+    }
+    return 'U';
+  };
+
+  const fullName = profile ? `${profile.first_name} ${profile.last_name}` : 'User';
+  const role = profile?.role || 'User';
 
   return (
     <aside className="bg-white dark:bg-gray-800 border-r min-h-screen w-64 flex flex-col">
@@ -109,12 +122,15 @@ const Sidebar = () => {
       
       <div className="p-4 border-t mt-auto">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-construction-100 flex items-center justify-center text-construction-700 font-medium">
-            JS
-          </div>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={profile?.avatar_url || ''} alt={fullName} />
+            <AvatarFallback className="bg-construction-100 text-construction-700 font-medium">
+              {getInitials()}
+            </AvatarFallback>
+          </Avatar>
           <div>
-            <p className="text-sm font-medium">John Smith</p>
-            <p className="text-xs text-gray-500">Project Manager</p>
+            <p className="text-sm font-medium">{fullName}</p>
+            <p className="text-xs text-gray-500">{role}</p>
           </div>
         </div>
       </div>
