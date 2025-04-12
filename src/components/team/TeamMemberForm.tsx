@@ -44,6 +44,11 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // For standalone team form
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+
   const roles = ['Project Manager', 'Civil Engineer', 'Architect', 'Site Supervisor', 'Safety Officer', 'Contractor'];
 
   // Fetch available users from profiles table
@@ -75,66 +80,111 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedUser || !role) {
-      toast({
-        title: "Missing information",
-        description: "Please select a team member and role",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // If projectId is provided, we're adding a member to a specific project
-    if (!projectId) {
-      toast({
-        title: "Project information missing",
-        description: "Cannot add team member without project information",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      // Add member to team_members table
-      const { error } = await supabase
-        .from('team_members')
-        .insert({
-          project_id: projectId,
-          user_id: selectedUser,
-          role: role
+    if (projectId) {
+      // Project team member assignment
+      if (!selectedUser || !role) {
+        toast({
+          title: "Missing information",
+          description: "Please select a team member and role",
+          variant: "destructive"
         });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Team member added",
-        description: "The team member has been added to the project.",
-      });
-      
-      // Reset form
-      setSelectedUser('');
-      setRole('');
-      setOpen(false);
-      
-      // Notify parent component
-      if (onMemberAdded) {
-        onMemberAdded();
+        return;
       }
+      
+      setIsSubmitting(true);
+      
+      try {
+        // Add member to team_members table
+        const { error } = await supabase
+          .from('team_members')
+          .insert({
+            project_id: projectId,
+            user_id: selectedUser,
+            role: role
+          });
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Team member added",
+          description: "The team member has been added to the project.",
+        });
+        
+        // Reset form
+        setSelectedUser('');
+        setRole('');
+        setOpen(false);
+        
+        // Notify parent component
+        if (onMemberAdded) {
+          onMemberAdded();
+        }
 
-      if (onClose) {
-        onClose();
+        if (onClose) {
+          onClose();
+        }
+      } catch (error: any) {
+        console.error("Error adding team member:", error);
+        toast({
+          title: "Error adding team member",
+          description: error.message || "An unexpected error occurred",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSubmitting(false);
       }
-    } catch (error: any) {
-      console.error("Error adding team member:", error);
-      toast({
-        title: "Error adding team member",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      // Standalone team member creation
+      if (!firstName || !lastName || !email || !role) {
+        toast({
+          title: "Missing information",
+          description: "Please fill in all required fields",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setIsSubmitting(true);
+      
+      try {
+        // Add new team member to profiles
+        const { data, error } = await supabase
+          .from('profiles')
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            role: role
+          })
+          .select();
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Team member created",
+          description: `${firstName} ${lastName} has been added to the team.`,
+        });
+        
+        // Reset form
+        setFirstName('');
+        setLastName('');
+        setEmail('');
+        setRole('');
+        setOpen(false);
+        
+        // Notify parent component
+        if (onMemberAdded) {
+          onMemberAdded();
+        }
+      } catch (error: any) {
+        console.error("Error creating team member:", error);
+        toast({
+          title: "Error creating team member",
+          description: error.message || "An unexpected error occurred",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -235,6 +285,8 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
               <Input
                 id="firstName"
                 placeholder="Enter first name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
                 required
               />
             </div>
@@ -244,6 +296,8 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
               <Input
                 id="lastName"
                 placeholder="Enter last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
                 required
               />
             </div>
@@ -254,6 +308,8 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
                 id="email"
                 type="email"
                 placeholder="Enter email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>

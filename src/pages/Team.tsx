@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -17,7 +17,8 @@ import {
   MoreHorizontal, 
   Mail, 
   Phone, 
-  Briefcase
+  Briefcase,
+  Loader2
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -28,6 +29,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import TeamMemberForm from "@/components/team/TeamMemberForm";
+import { supabase } from "@/lib/supabase";
 
 interface TeamMember {
   id: string;
@@ -44,58 +46,59 @@ interface TeamMember {
 const Team = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    {
-      id: "1",
-      first_name: "John",
-      last_name: "Smith",
-      email: "john.smith@edifice.com",
-      phone: "+1 (555) 123-4567",
-      role: "Project Manager",
-      position: "Senior Project Manager",
-      department: "Management",
-    },
-    {
-      id: "2",
-      first_name: "Sarah",
-      last_name: "Johnson",
-      email: "sarah.johnson@edifice.com",
-      phone: "+1 (555) 234-5678",
-      role: "Civil Engineer",
-      position: "Lead Engineer",
-      department: "Engineering",
-    },
-    {
-      id: "3",
-      first_name: "Michael",
-      last_name: "Chen",
-      email: "michael.chen@edifice.com",
-      phone: "+1 (555) 345-6789",
-      role: "Architect",
-      position: "Senior Architect",
-      department: "Design",
-    },
-    {
-      id: "4",
-      first_name: "Jessica",
-      last_name: "Williams",
-      email: "jessica.williams@edifice.com",
-      phone: "+1 (555) 456-7890",
-      role: "Site Supervisor",
-      position: "Construction Supervisor",
-      department: "Construction",
-    },
-    {
-      id: "5",
-      first_name: "Robert",
-      last_name: "Brown",
-      email: "robert.brown@edifice.com",
-      phone: "+1 (555) 567-8901",
-      role: "Safety Officer",
-      position: "Safety Coordinator",
-      department: "Safety",
-    }
-  ]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch team members from the database
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*');
+        
+        if (error) throw error;
+        
+        setTeamMembers(data as TeamMember[]);
+      } catch (error) {
+        console.error("Error fetching team members:", error);
+        toast({
+          title: "Error fetching team members",
+          description: "Failed to load team members from the database.",
+          variant: "destructive"
+        });
+        
+        // Set default team members if there's an error or no data
+        setTeamMembers([
+          {
+            id: "1",
+            first_name: "John",
+            last_name: "Smith",
+            email: "john.smith@edifice.com",
+            phone: "+1 (555) 123-4567",
+            role: "Project Manager",
+            position: "Senior Project Manager",
+            department: "Management",
+          },
+          {
+            id: "2",
+            first_name: "Sarah",
+            last_name: "Johnson",
+            email: "sarah.johnson@edifice.com",
+            phone: "+1 (555) 234-5678",
+            role: "Civil Engineer",
+            position: "Lead Engineer",
+            department: "Engineering",
+          }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTeamMembers();
+  }, []);
 
   // Filter team members based on search term
   const filteredTeamMembers = teamMembers.filter(member => {
@@ -111,8 +114,22 @@ const Team = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`;
   };
 
-  const handleMemberAdded = () => {
-    // In a real app, we would fetch the updated team members from the API
+  const handleMemberAdded = async () => {
+    // Refresh the team members list
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (error) throw error;
+      
+      setTeamMembers(data as TeamMember[]);
+    } catch (error) {
+      console.error("Error refreshing team members:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleViewProfile = (member: TeamMember) => {
@@ -169,83 +186,90 @@ const Team = () => {
           <CardTitle className="text-xl">Team Members</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTeamMembers.length > 0 ? (
-                filteredTeamMembers.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={member.avatar_url || undefined} alt={`${member.first_name} ${member.last_name}`} />
-                          <AvatarFallback className="bg-construction-100 text-construction-700">
-                            {getInitials(member.first_name, member.last_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          {`${member.first_name} ${member.last_name}`}
-                          <div className="text-xs text-gray-500">
-                            {member.position}
+          {isLoading ? (
+            <div className="flex justify-center items-center p-12">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-500">Loading team members...</span>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTeamMembers.length > 0 ? (
+                  filteredTeamMembers.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={member.avatar_url || undefined} alt={`${member.first_name} ${member.last_name}`} />
+                            <AvatarFallback className="bg-construction-100 text-construction-700">
+                              {getInitials(member.first_name, member.last_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            {`${member.first_name} ${member.last_name}`}
+                            <div className="text-xs text-gray-500">
+                              {member.position}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{member.role}</TableCell>
-                    <TableCell>{member.department || 'N/A'}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3 text-gray-400" />
-                        <span className="text-sm">{member.email || 'Not specified'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3 text-gray-400" />
-                        <span className="text-sm">{member.phone || 'Not specified'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="bg-transparent p-2 rounded-full hover:bg-gray-100">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewProfile(member)}>
-                            View Profile
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditMember(member)}>
-                            Edit Member
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleViewProjects(member)}>
-                            View Projects
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      </TableCell>
+                      <TableCell>{member.role}</TableCell>
+                      <TableCell>{member.department || 'N/A'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Mail className="h-3 w-3 text-gray-400" />
+                          <span className="text-sm">{member.email || 'Not specified'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-3 w-3 text-gray-400" />
+                          <span className="text-sm">{member.phone || 'Not specified'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="bg-transparent p-2 rounded-full hover:bg-gray-100">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleViewProfile(member)}>
+                              View Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditMember(member)}>
+                              Edit Member
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewProjects(member)}>
+                              View Projects
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                      No team members found matching your search criteria
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-gray-500">
-                    No team members found matching your search criteria
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </PageLayout>
