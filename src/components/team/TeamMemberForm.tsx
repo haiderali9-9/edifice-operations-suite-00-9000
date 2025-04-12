@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 interface TeamMemberFormProps {
   onMemberAdded?: () => void;
@@ -151,10 +152,14 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
       setIsSubmitting(true);
       
       try {
+        // Generate a UUID for the new team member
+        const userId = uuidv4();
+        
         // Add new team member to profiles
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('profiles')
           .insert({
+            id: userId,
             first_name: firstName,
             last_name: lastName,
             role: role,
@@ -162,8 +167,7 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
             department: department,
             phone: phone,
             email: email
-          })
-          .select();
+          });
         
         if (error) {
           console.error("Profiles insert error:", error);
