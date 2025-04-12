@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,22 +7,40 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RequireAuth from "./components/auth/RequireAuth";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Projects from "./pages/Projects";
-import ProjectDetails from "./pages/ProjectDetails";
-import Resources from "./pages/Resources";
-import Issues from "./pages/Issues";
-import Team from "./pages/Team";
-import Schedule from "./pages/Schedule";
-import Finances from "./pages/Finances";
-import Reports from "./pages/Reports";
-import Documents from "./pages/Documents";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
-// Create a client
-const queryClient = new QueryClient();
+// Lazy load pages for better performance
+const Index = React.lazy(() => import("./pages/Index"));
+const Auth = React.lazy(() => import("./pages/Auth"));
+const Projects = React.lazy(() => import("./pages/Projects"));
+const ProjectDetails = React.lazy(() => import("./pages/ProjectDetails"));
+const Resources = React.lazy(() => import("./pages/Resources"));
+const Issues = React.lazy(() => import("./pages/Issues"));
+const Team = React.lazy(() => import("./pages/Team"));
+const Schedule = React.lazy(() => import("./pages/Schedule"));
+const Finances = React.lazy(() => import("./pages/Finances"));
+const Reports = React.lazy(() => import("./pages/Reports"));
+const Documents = React.lazy(() => import("./pages/Documents"));
+const Settings = React.lazy(() => import("./pages/Settings"));
+const NotFound = React.lazy(() => import("./pages/NotFound"));
+
+// Create a client with default options
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// Loading fallback component
+const PageLoader = () => (
+  <div className="flex justify-center items-center min-h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-construction-600" />
+  </div>
+);
 
 const App: React.FC = () => {
   return (
@@ -33,28 +51,30 @@ const App: React.FC = () => {
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <Routes>
-                {/* Public routes */}
-                <Route path="/auth" element={<Auth />} />
-                
-                {/* Protected routes */}
-                <Route element={<RequireAuth />}>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/projects" element={<Projects />} />
-                  <Route path="/projects/:projectId" element={<ProjectDetails />} />
-                  <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/resources" element={<Resources />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/finances" element={<Finances />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/documents" element={<Documents />} />
-                  <Route path="/issues" element={<Issues />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
-                
-                {/* Catch all route */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Protected routes */}
+                  <Route element={<RequireAuth />}>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/projects/:projectId" element={<ProjectDetails />} />
+                    <Route path="/schedule" element={<Schedule />} />
+                    <Route path="/resources" element={<Resources />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/finances" element={<Finances />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/issues" element={<Issues />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
+                  
+                  {/* Catch all route */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
             </TooltipProvider>
           </AuthProvider>
         </BrowserRouter>

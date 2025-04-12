@@ -8,12 +8,10 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJrdHFvYnJ0dGNxZ3d2Ym9kY2poIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMDk5NzYsImV4cCI6MjA1OTg4NTk3Nn0.mv8bVB3tRQx4wyaxmfIXXdx4ihs2vEk1Aik2xUHuSjg';
 
 // Create Supabase client with proper configuration
-const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
   }
 });
-
-export { supabase };

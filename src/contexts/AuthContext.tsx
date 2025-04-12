@@ -42,9 +42,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
-          await fetchProfile(currentSession.user.id);
+          try {
+            await fetchProfile(currentSession.user.id);
+          } catch (error) {
+            console.error('Error fetching profile during auth change:', error);
+          } finally {
+            // Ensure loading state is updated even if profile fetch fails
+            setIsLoading(false);
+          }
         } else {
           setProfile(null);
+          setIsLoading(false);
         }
       }
     );
@@ -55,7 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        fetchProfile(currentSession.user.id).then(() => {
+        fetchProfile(currentSession.user.id).catch(error => {
+          console.error('Error fetching profile during initial load:', error);
+        }).finally(() => {
           setIsLoading(false);
         });
       } else {
@@ -76,13 +86,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', userId)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching profile:', error);
+        throw error;
+      }
       
       if (data) {
         setProfile(data as UserProfile);
+      } else {
+        console.warn('No profile found for user:', userId);
+        // Create a default profile if none exists
+        const defaultProfile = {
+          id: userId,
+          first_name: '',
+          last_name: '',
+          role: 'user',
+          avatar_url: null
+        };
+        setProfile(defaultProfile);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
+      throw error;
     }
   }
 
