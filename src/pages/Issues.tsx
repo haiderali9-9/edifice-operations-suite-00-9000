@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Issue } from "@/types";
+import { Issue, User } from "@/types";
 import { Search, Filter, MoreHorizontal, AlertTriangle } from "lucide-react";
 import IssueForm from "@/components/issues/IssueForm";
 import { useToast } from "@/hooks/use-toast";
