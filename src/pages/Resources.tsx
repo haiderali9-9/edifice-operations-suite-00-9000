@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,7 +128,7 @@ const Resources = () => {
   // Calculate total usage and value
   const totalAllocation = filteredResources.reduce(
     (sum, resource) => 
-      sum + resource.allocated.reduce((s, a) => s + a.quantity, 0),
+      sum + (resource.resource_allocations?.reduce((s, a) => s + a.quantity, 0) || 0),
     0
   );
   

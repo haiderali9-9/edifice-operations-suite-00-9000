@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -32,14 +31,14 @@ import { Project } from "@/types";
 const Projects = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(false);
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Fetch projects from Supabase
-  const { data: projects, isLoading, isError, refetch } = useQuery({
+  const { data: projects, isLoading, isError, refetch: refetchProjects } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -90,7 +89,7 @@ const Projects = () => {
   };
 
   const handleNewProject = () => {
-    setShowNewProjectModal(true);
+    setShowNewModal(true);
   };
 
   const handleEditProject = (project: Project) => {
@@ -111,7 +110,7 @@ const Projects = () => {
       title: "Project Created",
       description: "New project has been created successfully.",
     });
-    refetch();
+    refetchProjects();
   };
 
   const handleProjectUpdated = () => {
@@ -119,7 +118,7 @@ const Projects = () => {
       title: "Project Updated",
       description: "Project details have been updated successfully.",
     });
-    refetch();
+    refetchProjects();
   };
 
   if (isError) {
@@ -292,10 +291,12 @@ const Projects = () => {
         </CardContent>
       </Card>
       
-      <NewProjectModal 
-        isOpen={showNewProjectModal} 
-        onClose={() => setShowNewProjectModal(false)}
-        onProjectCreated={handleProjectCreated}
+      <NewProjectModal
+        isOpen={showNewModal}
+        onClose={() => setShowNewModal(false)}
+        onSuccess={() => {
+          refetchProjects();
+        }}
       />
 
       {selectedProject && (

@@ -46,7 +46,7 @@ const ProjectsOverview = ({ projects }: ProjectsOverviewProps) => {
                 <div className="flex items-center">
                   <Calendar className="h-3 w-3 mr-1 text-gray-400" />
                   <span className="text-xs text-gray-600">
-                    {new Date(project.endDate).toLocaleDateString()}
+                    {new Date(project.end_date).toLocaleDateString()}
                   </span>
                 </div>
               </div>

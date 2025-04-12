@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface DocumentUploaderProps {
-  projectId: string;
+  projectId?: string;
   onDocumentUploaded?: () => void;
 }
 
@@ -35,16 +35,46 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
   const [documentName, setDocumentName] = useState('');
   const [documentType, setDocumentType] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId || null);
+  const [projects, setProjects] = useState<{id: string, name: string}[]>([]);
+
+  React.useEffect(() => {
+    // If no projectId is provided, fetch available projects
+    if (!projectId) {
+      const fetchProjects = async () => {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('id, name');
+        
+        if (!error && data) {
+          setProjects(data);
+        }
+      };
+      
+      fetchProjects();
+    }
+  }, [projectId]);
 
   const documentTypes = ['Blueprint', 'Contract', 'Permit', 'Invoice', 'Report', 'Other'];
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate required fields
     if (!documentName || !documentType || !file) {
       toast({
         title: "Missing information",
         description: "Please fill all required fields and select a file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // If not in project context, ensure a project is selected
+    if (!projectId && !selectedProjectId) {
+      toast({
+        title: "Project required",
+        description: "Please select a project for this document",
         variant: "destructive"
       });
       return;
@@ -55,7 +85,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
     try {
       // Generate a unique filename to prevent collisions
       const fileExt = file.name.split('.').pop();
-      const filePath = `${projectId}/${uuidv4()}.${fileExt}`;
+      const filePath = `${projectId || selectedProjectId}/${uuidv4()}.${fileExt}`;
       
       // Upload file to Supabase Storage
       const { error: uploadError, data: uploadData } = await supabase
@@ -77,7 +107,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
       const { error: dbError } = await supabase
         .from('documents')
         .insert({
-          project_id: projectId,
+          project_id: projectId || selectedProjectId,
           name: documentName,
           type: documentType,
           url: publicUrlData.publicUrl,
@@ -136,6 +166,24 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
                 required
               />
             </div>
+            
+            {!projectId && (
+              <div className="grid gap-2">
+                <Label htmlFor="project">Project</Label>
+                <Select value={selectedProjectId || ''} onValueChange={setSelectedProjectId} required>
+                  <SelectTrigger id="project">
+                    <SelectValue placeholder="Select project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             
             <div className="grid gap-2">
               <Label htmlFor="type">Document Type</Label>

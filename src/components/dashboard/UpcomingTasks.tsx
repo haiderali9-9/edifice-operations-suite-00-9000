@@ -12,7 +12,7 @@ const UpcomingTasks = ({ tasks }: UpcomingTasksProps) => {
   // Filter tasks that are upcoming (not started or in progress)
   const upcomingTasks = tasks
     .filter((task) => task.status === "Not Started" || task.status === "In Progress")
-    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
+    .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
     .slice(0, 5);
 
   const getPriorityClass = (priority: string) => {
@@ -64,7 +64,7 @@ const UpcomingTasks = ({ tasks }: UpcomingTasksProps) => {
               <div className="flex items-center text-xs text-gray-500">
                 <CalendarClock className="h-3 w-3 mr-1" />
                 <span>
-                  {new Date(task.startDate).toLocaleDateString()} - {new Date(task.endDate).toLocaleDateString()}
+                  {new Date(task.start_date).toLocaleDateString()} - {new Date(task.end_date).toLocaleDateString()}
                 </span>
               </div>
               <Badge variant="outline" className={getStatusClass(task.status)}>
@@ -74,7 +74,7 @@ const UpcomingTasks = ({ tasks }: UpcomingTasksProps) => {
             <div className="mt-3 flex items-center">
               <Users className="h-3 w-3 mr-1 text-gray-400" />
               <span className="text-xs text-gray-500">
-                {task.assignedTo.length} {task.assignedTo.length === 1 ? "person" : "people"} assigned
+                {task.task_assignments?.length || 0} {(task.task_assignments?.length || 0) === 1 ? "person" : "people"} assigned
               </span>
             </div>
           </div>

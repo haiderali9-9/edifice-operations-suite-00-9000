@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Resource } from "@/types";
+import { Resource, ResourceAllocation } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -71,7 +71,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                     <TableCell className="font-medium">{resource.name}</TableCell>
                     <TableCell>{resource.type}</TableCell>
                     <TableCell className="text-right">
-                      {resource.quantity - resource.allocated.reduce((sum, a) => sum + a.quantity, 0)} / {resource.quantity} {resource.unit}
+                      {resource.quantity - (resource.resource_allocations?.reduce((sum, a) => sum + a.quantity, 0) || 0)} / {resource.quantity} {resource.unit}
                     </TableCell>
                     <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
                   </TableRow>

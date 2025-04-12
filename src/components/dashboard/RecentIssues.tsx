@@ -12,7 +12,7 @@ const RecentIssues = ({ issues }: RecentIssuesProps) => {
   // Sort by date (most recent first) and filter non-resolved
   const recentIssues = issues
     .filter((issue) => issue.status !== "Resolved")
-    .sort((a, b) => new Date(b.reportDate).getTime() - new Date(a.reportDate).getTime())
+    .sort((a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime())
     .slice(0, 4);
 
   const getPriorityClass = (priority: string) => {
@@ -64,7 +64,7 @@ const RecentIssues = ({ issues }: RecentIssuesProps) => {
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-1 text-gray-500">
                 <Calendar className="h-3 w-3" />
-                <span>{new Date(issue.reportDate).toLocaleDateString()}</span>
+                <span>{new Date(issue.report_date).toLocaleDateString()}</span>
               </div>
               <Badge variant="outline" className={getStatusClass(issue.status)}>
                 {issue.status}

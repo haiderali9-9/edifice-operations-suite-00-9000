@@ -30,6 +30,7 @@ export interface Task {
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   start_date: string;
   end_date: string;
+  task_assignments?: TaskAssignment[];
 }
 
 export interface TaskAssignment {
@@ -46,6 +47,7 @@ export interface Resource {
   unit: string;
   cost: number;
   status: 'Available' | 'Low Stock' | 'Out of Stock';
+  resource_allocations?: ResourceAllocation[];
 }
 
 export interface ResourceAllocation {
@@ -59,13 +61,13 @@ export interface ResourceAllocation {
 
 export interface Expense {
   id: string;
-  projectId: string;
+  project_id: string;
   category: string;
   amount: number;
   date: string;
   description: string;
   approved: boolean;
-  paidBy?: string;
+  paid_by?: string;
 }
 
 export interface Document {
@@ -90,3 +92,4 @@ export interface Issue {
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   resolution_date?: string;
 }
+

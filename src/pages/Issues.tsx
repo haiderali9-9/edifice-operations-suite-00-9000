@@ -119,7 +119,14 @@ const Issues = () => {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
-  
+
+  const formatUserName = (user: User | string) => {
+    if (typeof user === 'string') {
+      return user;
+    }
+    return user.name;
+  };
+
   const handleIssueAction = async (action: string, issue: Issue) => {
     switch (action) {
       case 'view':
@@ -357,12 +364,12 @@ const Issues = () => {
                   <TableCell>{issue.project_id ? getProjectName(issue.project_id) : "N/A"}</TableCell>
                   <TableCell>
                     {typeof issue.reported_by === 'object' && issue.reported_by ? 
-                      `${issue.reported_by.first_name} ${issue.reported_by.last_name}` : 
+                      `${formatUserName(issue.reported_by)}` : 
                       "Unknown"}
                   </TableCell>
                   <TableCell>
                     {typeof issue.assigned_to === 'object' && issue.assigned_to ? 
-                      `${issue.assigned_to.first_name} ${issue.assigned_to.last_name}` : 
+                      `${formatUserName(issue.assigned_to)}` : 
                       "Unassigned"}
                   </TableCell>
                   <TableCell>{new Date(issue.report_date).toLocaleDateString()}</TableCell>

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -216,7 +215,9 @@ const Documents = () => {
             Store and manage all your project documents
           </p>
         </div>
-        <DocumentUploader onDocumentUploaded={handleDocumentUploaded} />
+        <DocumentUploader 
+          onDocumentUploaded={handleDocumentUploaded}
+        />
       </div>
 
       <Card className="mb-6">
