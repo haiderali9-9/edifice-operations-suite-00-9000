@@ -54,6 +54,44 @@ export interface Database {
           created_at?: string
         }
       }
+      profiles: {
+        Row: {
+          id: string
+          first_name: string
+          last_name: string
+          role: string
+          avatar_url?: string
+          email?: string
+          phone?: string
+          position?: string
+          department?: string
+          created_at: string
+        }
+        Insert: {
+          id: string
+          first_name: string
+          last_name: string
+          role?: string
+          avatar_url?: string
+          email?: string
+          phone?: string
+          position?: string
+          department?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          first_name?: string
+          last_name?: string
+          role?: string
+          avatar_url?: string
+          email?: string
+          phone?: string
+          position?: string
+          department?: string
+          created_at?: string
+        }
+      }
       resources: {
         Row: {
           id: string
@@ -106,6 +144,29 @@ export interface Database {
           resource_id?: string
           project_id?: string
           quantity?: number
+          created_at?: string
+        }
+      }
+      team_members: {
+        Row: {
+          id: string
+          project_id: string
+          user_id: string
+          role: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          user_id: string
+          role: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          user_id?: string
+          role?: string
           created_at?: string
         }
       }

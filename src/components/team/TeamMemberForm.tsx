@@ -48,8 +48,12 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [position, setPosition] = useState('');
+  const [department, setDepartment] = useState('');
 
   const roles = ['Project Manager', 'Civil Engineer', 'Architect', 'Site Supervisor', 'Safety Officer', 'Contractor'];
+  const departments = ['Management', 'Engineering', 'Design', 'Construction', 'Safety', 'Administration'];
 
   // Fetch available users from profiles table
   useEffect(() => {
@@ -135,7 +139,7 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
       }
     } else {
       // Standalone team member creation
-      if (!firstName || !lastName || !email || !role) {
+      if (!firstName || !lastName || !role) {
         toast({
           title: "Missing information",
           description: "Please fill in all required fields",
@@ -153,11 +157,18 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
           .insert({
             first_name: firstName,
             last_name: lastName,
-            role: role
+            role: role,
+            position: position,
+            department: department,
+            phone: phone,
+            email: email
           })
           .select();
         
-        if (error) throw error;
+        if (error) {
+          console.error("Profiles insert error:", error);
+          throw error;
+        }
         
         toast({
           title: "Team member created",
@@ -168,6 +179,9 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
         setFirstName('');
         setLastName('');
         setEmail('');
+        setPhone('');
+        setPosition('');
+        setDepartment('');
         setRole('');
         setOpen(false);
         
@@ -280,42 +294,56 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
             <DialogTitle>Add Team Member</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                placeholder="Enter first name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  placeholder="Enter first name"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Enter last name"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter email address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="Enter phone number"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
             </div>
             
             <div className="grid gap-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                placeholder="Enter last name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">Role *</Label>
               <Select value={role} onValueChange={setRole} required>
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Select role" />
@@ -328,6 +356,34 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="position">Position</Label>
+                <Input
+                  id="position"
+                  placeholder="e.g. Senior Engineer"
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="department">Department</Label>
+                <Select value={department} onValueChange={setDepartment}>
+                  <SelectTrigger id="department">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
