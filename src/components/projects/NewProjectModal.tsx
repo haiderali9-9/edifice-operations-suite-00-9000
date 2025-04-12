@@ -84,7 +84,7 @@ const NewProjectModal = ({ isOpen, onClose }: NewProjectModalProps) => {
       if (error) throw error;
       
       // Success! Close the modal and show success toast
-      queryClient.invalidateQueries(['projects']);
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       onClose();
       
       toast({

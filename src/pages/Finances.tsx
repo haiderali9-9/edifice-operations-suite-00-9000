@@ -174,7 +174,11 @@ const Finances = () => {
                         <TableCell>{formatCurrency(budget.remaining)}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Progress value={utilizationPercentage} className="h-2" indicatorColor={utilizationColor} />
+                            <Progress 
+                              value={utilizationPercentage} 
+                              className="h-2"
+                              indicatorClassName={utilizationColor} 
+                            />
                             <span className="text-sm">{utilizationPercentage}%</span>
                           </div>
                         </TableCell>
