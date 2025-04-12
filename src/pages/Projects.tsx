@@ -37,7 +37,6 @@ const Projects = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Fetch projects from Supabase
   const { data: projects, isLoading, isError, refetch: refetchProjects } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
@@ -53,7 +52,6 @@ const Projects = () => {
     },
   });
 
-  // Filter projects based on search term and status filter
   const filteredProjects = projects ? projects.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -294,9 +292,7 @@ const Projects = () => {
       <NewProjectModal
         isOpen={showNewModal}
         onClose={() => setShowNewModal(false)}
-        onSuccess={() => {
-          refetchProjects();
-        }}
+        onSuccess={refetchProjects}
       />
 
       {selectedProject && (

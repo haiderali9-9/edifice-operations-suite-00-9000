@@ -19,6 +19,8 @@ export interface User {
   email: string;
   role: string;
   avatar?: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 export interface Task {
@@ -92,4 +94,3 @@ export interface Issue {
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
   resolution_date?: string;
 }
-

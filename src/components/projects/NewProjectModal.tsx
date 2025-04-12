@@ -15,9 +15,10 @@ import { Loader2 } from 'lucide-react';
 interface NewProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-const NewProjectModal = ({ isOpen, onClose }: NewProjectModalProps) => {
+const NewProjectModal = ({ isOpen, onClose, onSuccess }: NewProjectModalProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -91,6 +92,11 @@ const NewProjectModal = ({ isOpen, onClose }: NewProjectModalProps) => {
         title: "Project Created",
         description: `${formData.name} has been created successfully.`,
       });
+
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error: any) {
       console.error('Error creating project:', error);
       toast({
