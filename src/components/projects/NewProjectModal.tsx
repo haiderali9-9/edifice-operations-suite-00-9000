@@ -1,13 +1,13 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface NewProjectModalProps {
@@ -29,7 +29,7 @@ const NewProjectModal = ({ isOpen, onClose }: NewProjectModalProps) => {
     budget: 0,
     status: 'Planning' as 'Planning' | 'In Progress' | 'On Hold' | 'Completed',
     completion: 0,
-    manager_id: 'default-manager-id', // In a real app, this would come from the authenticated user
+    manager_id: '00000000-0000-0000-0000-000000000000', // Using a valid UUID format as default
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -100,6 +100,9 @@ const NewProjectModal = ({ isOpen, onClose }: NewProjectModalProps) => {
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
+          <DialogDescription>
+            Fill in the project details to create a new project.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
