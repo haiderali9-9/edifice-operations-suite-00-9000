@@ -2,7 +2,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
-import { projects } from "@/data/mockData";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -23,17 +22,37 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Project } from "@/types";
-import { Search, Plus, Filter, MoreHorizontal } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import NewProjectModal from "@/components/projects/NewProjectModal";
 
 const Projects = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Fetch projects from Supabase
+  const { data: projects, isLoading, isError } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*');
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      return data || [];
+    },
+  });
+
   // Filter projects based on search term and status filter
-  const filteredProjects = projects.filter((project) => {
+  const filteredProjects = projects ? projects.filter((project) => {
     const matchesSearch =
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       project.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,7 +61,7 @@ const Projects = () => {
     const matchesStatus = statusFilter ? project.status === statusFilter : true;
 
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -68,11 +87,27 @@ const Projects = () => {
   };
 
   const handleNewProject = () => {
-    toast({
-      title: "Feature Coming Soon",
-      description: "The new project creation functionality will be implemented in the next step.",
-    });
+    setShowNewProjectModal(true);
   };
+
+  if (isError) {
+    return (
+      <PageLayout>
+        <div className="flex flex-col items-center justify-center h-[70vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Error Loading Projects</h2>
+            <p className="text-gray-500 mb-4">There was a problem loading the projects data.</p>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.reload()}
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
@@ -131,99 +166,113 @@ const Projects = () => {
 
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project Name</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Timeline</TableHead>
-                <TableHead>Budget</TableHead>
-                <TableHead>Progress</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProjects.map((project) => (
-                <TableRow key={project.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/projects/${project.id}`)}>
-                  <TableCell className="font-medium">{project.name}</TableCell>
-                  <TableCell>{project.client}</TableCell>
-                  <TableCell>{project.location}</TableCell>
-                  <TableCell>
-                    <span className="block text-sm">
-                      {new Date(project.startDate).toLocaleDateString()} -
-                    </span>
-                    <span className="block text-sm">
-                      {new Date(project.endDate).toLocaleDateString()}
-                    </span>
-                  </TableCell>
-                  <TableCell>{formatCurrency(project.budget)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Progress value={project.completion} className="h-2" />
-                      <span className="whitespace-nowrap text-sm">{project.completion}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(project.status)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/projects/${project.id}`);
-                        }}>
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          toast({
-                            title: "Feature Coming Soon",
-                            description: "Edit Project functionality will be implemented in the next step.",
-                          });
-                        }}>
-                          Edit Project
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          toast({
-                            title: "Feature Coming Soon",
-                            description: "View Tasks functionality will be implemented in the next step.",
-                          });
-                        }}>
-                          View Tasks
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => {
-                          e.stopPropagation();
-                          toast({
-                            title: "Feature Coming Soon",
-                            description: "View Documents functionality will be implemented in the next step.",
-                          });
-                        }}>
-                          View Documents
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredProjects.length === 0 && (
+          {isLoading ? (
+            <div className="flex justify-center items-center p-16">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <span className="ml-2 text-gray-500">Loading projects...</span>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-gray-500">
-                    No projects found matching your filters
-                  </TableCell>
+                  <TableHead>Project Name</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Timeline</TableHead>
+                  <TableHead>Budget</TableHead>
+                  <TableHead>Progress</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredProjects.map((project) => (
+                  <TableRow key={project.id} className="cursor-pointer hover:bg-gray-50" onClick={() => navigate(`/projects/${project.id}`)}>
+                    <TableCell className="font-medium">{project.name}</TableCell>
+                    <TableCell>{project.client}</TableCell>
+                    <TableCell>{project.location}</TableCell>
+                    <TableCell>
+                      <span className="block text-sm">
+                        {new Date(project.start_date).toLocaleDateString()} -
+                      </span>
+                      <span className="block text-sm">
+                        {new Date(project.end_date).toLocaleDateString()}
+                      </span>
+                    </TableCell>
+                    <TableCell>{formatCurrency(project.budget)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={project.completion} className="h-2" />
+                        <span className="whitespace-nowrap text-sm">{project.completion}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getStatusBadge(project.status)}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/projects/${project.id}`);
+                          }}>
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            toast({
+                              title: "Feature Coming Soon",
+                              description: "Edit Project functionality will be implemented in the next step.",
+                            });
+                          }}>
+                            Edit Project
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            toast({
+                              title: "Feature Coming Soon",
+                              description: "View Tasks functionality will be implemented in the next step.",
+                            });
+                          }}>
+                            View Tasks
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            toast({
+                              title: "Feature Coming Soon",
+                              description: "View Documents functionality will be implemented in the next step.",
+                            });
+                          }}>
+                            View Documents
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredProjects.length === 0 && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                      {projects && projects.length > 0 
+                        ? "No projects found matching your filters" 
+                        : "No projects yet. Click 'New Project' to add your first project!"}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+      
+      <NewProjectModal 
+        isOpen={showNewProjectModal} 
+        onClose={() => setShowNewProjectModal(false)} 
+      />
     </PageLayout>
   );
 };

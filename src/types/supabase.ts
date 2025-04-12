@@ -10,6 +10,50 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      projects: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          client: string
+          location: string
+          start_date: string
+          end_date: string
+          budget: number
+          status: 'Planning' | 'In Progress' | 'On Hold' | 'Completed'
+          completion: number
+          manager_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description: string
+          client: string
+          location: string
+          start_date: string
+          end_date: string
+          budget: number
+          status?: 'Planning' | 'In Progress' | 'On Hold' | 'Completed'
+          completion?: number
+          manager_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          client?: string
+          location?: string
+          start_date?: string
+          end_date?: string
+          budget?: number
+          status?: 'Planning' | 'In Progress' | 'On Hold' | 'Completed'
+          completion?: number
+          manager_id?: string
+          created_at?: string
+        }
+      }
       resources: {
         Row: {
           id: string
