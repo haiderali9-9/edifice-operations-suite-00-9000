@@ -1,7 +1,5 @@
-
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
-import { issues, projects } from "@/data/mockData";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -24,16 +22,48 @@ import { Issue } from "@/types";
 import { Search, Filter, MoreHorizontal, AlertTriangle } from "lucide-react";
 import IssueForm from "@/components/issues/IssueForm";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 const Issues = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
-  const [issuesList, setIssuesList] = useState<Issue[]>(issues);
+
   const { toast } = useToast();
+  
+  // Fetch issues from Supabase
+  const { data: issues, isLoading, isError, refetch } = useQuery({
+    queryKey: ['issues'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('issues')
+        .select(`
+          *,
+          reported_by:profiles!reported_by(id, first_name, last_name),
+          assigned_to:profiles!assigned_to(id, first_name, last_name)
+        `);
+      
+      if (error) throw error;
+      
+      // Transform the data to match our Issue type
+      return (data || []).map((issue: any) => ({
+        id: issue.id,
+        project_id: issue.project_id,
+        title: issue.title,
+        description: issue.description,
+        reported_by: issue.reported_by,
+        assigned_to: issue.assigned_to,
+        report_date: issue.report_date,
+        status: issue.status as 'Open' | 'In Progress' | 'Resolved',
+        priority: issue.priority as 'Low' | 'Medium' | 'High' | 'Critical',
+        resolution_date: issue.resolution_date,
+      })) as Issue[];
+    },
+  });
 
   // Filter issues based on search term, status filter, and priority filter
-  const filteredIssues = issuesList.filter((issue) => {
+  const filteredIssues = issues ? issues.filter((issue) => {
     const matchesSearch =
       issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       issue.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -41,11 +71,24 @@ const Issues = () => {
     const matchesPriority = priorityFilter ? issue.priority === priorityFilter : true;
 
     return matchesSearch && matchesStatus && matchesPriority;
+  }) : [];
+
+  // Fetch projects to get names
+  const { data: projects } = useQuery({
+    queryKey: ['projects-simple'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name');
+      
+      if (error) throw error;
+      return data || [];
+    },
   });
 
   // Find project name by ID
   const getProjectName = (projectId: string) => {
-    const project = projects.find((p) => p.id === projectId);
+    const project = projects?.find((p) => p.id === projectId);
     return project ? project.name : "Unknown Project";
   };
 
@@ -77,7 +120,7 @@ const Issues = () => {
     }
   };
   
-  const handleIssueAction = (action: string, issue: Issue) => {
+  const handleIssueAction = async (action: string, issue: Issue) => {
     switch (action) {
       case 'view':
         toast({
@@ -98,14 +141,31 @@ const Issues = () => {
         });
         break;
       case 'resolve':
-        const updatedIssues = issuesList.map(i => 
-          i.id === issue.id ? { ...i, status: "Resolved" } : i
-        );
-        setIssuesList(updatedIssues);
-        toast({
-          title: "Issue Resolved",
-          description: `Issue ${issue.title} has been marked as resolved`,
-        });
+        try {
+          const { error } = await supabase
+            .from('issues')
+            .update({ 
+              status: 'Resolved',
+              resolution_date: new Date().toISOString()
+            })
+            .eq('id', issue.id);
+          
+          if (error) throw error;
+          
+          toast({
+            title: "Issue Resolved",
+            description: `Issue ${issue.title} has been marked as resolved`,
+          });
+          
+          refetch();
+        } catch (error) {
+          console.error("Error resolving issue:", error);
+          toast({
+            title: "Error",
+            description: "Failed to resolve issue. Please try again.",
+            variant: "destructive"
+          });
+        }
         break;
       default:
         break;
@@ -113,12 +173,31 @@ const Issues = () => {
   };
   
   const handleIssueCreated = () => {
-    // In a real app, we would fetch the updated issues from the API
+    refetch();
     toast({
       title: "Issue Submitted",
       description: "Your issue has been reported and will be reviewed",
     });
   };
+
+  if (isError) {
+    return (
+      <PageLayout>
+        <div className="flex flex-col items-center justify-center h-[70vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-2">Error Loading Issues</h2>
+            <p className="text-gray-500 mb-4">There was a problem loading the issues data.</p>
+            <Button 
+              variant="outline" 
+              onClick={() => refetch()}
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
 
   return (
     <PageLayout>
@@ -132,6 +211,7 @@ const Issues = () => {
         <IssueForm onIssueCreated={handleIssueCreated} />
       </div>
 
+      
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <CardContent className="pt-6">
@@ -140,7 +220,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-gray-500" />
               </div>
               <p className="text-lg font-medium">
-                {issuesList.filter((i) => i.status === "Open").length}
+                {issues && issues.filter((i) => i.status === "Open").length}
               </p>
               <p className="text-sm text-gray-500">Open</p>
             </div>
@@ -153,7 +233,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-blue-500" />
               </div>
               <p className="text-lg font-medium">
-                {issuesList.filter((i) => i.status === "In Progress").length}
+                {issues && issues.filter((i) => i.status === "In Progress").length}
               </p>
               <p className="text-sm text-gray-500">In Progress</p>
             </div>
@@ -166,7 +246,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-green-500" />
               </div>
               <p className="text-lg font-medium">
-                {issuesList.filter((i) => i.status === "Resolved").length}
+                {issues && issues.filter((i) => i.status === "Resolved").length}
               </p>
               <p className="text-sm text-gray-500">Resolved</p>
             </div>
@@ -179,7 +259,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-red-500" />
               </div>
               <p className="text-lg font-medium">
-                {issuesList.filter((i) => i.priority === "Critical" && i.status !== "Resolved").length}
+                {issues && issues.filter((i) => i.priority === "Critical" && i.status !== "Resolved").length}
               </p>
               <p className="text-sm text-gray-500">Critical</p>
             </div>
@@ -187,6 +267,7 @@ const Issues = () => {
         </Card>
       </div>
 
+      
       <Card className="mb-6">
         <CardContent className="p-6">
           <div className="flex items-center gap-4 flex-wrap">
@@ -250,6 +331,7 @@ const Issues = () => {
         </CardContent>
       </Card>
 
+      
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -272,12 +354,18 @@ const Issues = () => {
                     <div className="font-medium">{issue.title}</div>
                     <div className="text-gray-500 text-xs truncate">{issue.description}</div>
                   </TableCell>
-                  <TableCell>{getProjectName(issue.projectId)}</TableCell>
-                  <TableCell>{issue.reportedBy.name}</TableCell>
+                  <TableCell>{issue.project_id ? getProjectName(issue.project_id) : "N/A"}</TableCell>
                   <TableCell>
-                    {issue.assignedTo ? issue.assignedTo.name : "Unassigned"}
+                    {typeof issue.reported_by === 'object' && issue.reported_by ? 
+                      `${issue.reported_by.first_name} ${issue.reported_by.last_name}` : 
+                      "Unknown"}
                   </TableCell>
-                  <TableCell>{new Date(issue.reportDate).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {typeof issue.assigned_to === 'object' && issue.assigned_to ? 
+                      `${issue.assigned_to.first_name} ${issue.assigned_to.last_name}` : 
+                      "Unassigned"}
+                  </TableCell>
+                  <TableCell>{new Date(issue.report_date).toLocaleDateString()}</TableCell>
                   <TableCell>{getPriorityBadge(issue.priority)}</TableCell>
                   <TableCell>{getStatusBadge(issue.status)}</TableCell>
                   <TableCell>

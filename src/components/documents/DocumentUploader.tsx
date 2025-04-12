@@ -20,27 +20,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { supabase } from '@/lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 interface DocumentUploaderProps {
+  projectId: string;
   onDocumentUploaded?: () => void;
 }
 
-const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded }) => {
+const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocumentUploaded }) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [documentName, setDocumentName] = useState('');
   const [documentType, setDocumentType] = useState('');
-  const [project, setProject] = useState('');
   const [file, setFile] = useState<File | null>(null);
 
   const documentTypes = ['Blueprint', 'Contract', 'Permit', 'Invoice', 'Report', 'Other'];
-  const projectOptions = ['Skyline Tower', 'Oceanview Residences', 'Central Business Hub', 'Riverside Complex', 'Mountain View Condos'];
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!documentName || !documentType || !project || !file) {
+    if (!documentName || !documentType || !file) {
       toast({
         title: "Missing information",
         description: "Please fill all required fields and select a file",
@@ -51,10 +52,39 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
     
     setIsUploading(true);
     
-    // Simulate upload delay
-    setTimeout(() => {
-      setIsUploading(false);
-      setOpen(false);
+    try {
+      // Generate a unique filename to prevent collisions
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${projectId}/${uuidv4()}.${fileExt}`;
+      
+      // Upload file to Supabase Storage
+      const { error: uploadError, data: uploadData } = await supabase
+        .storage
+        .from('project_documents')
+        .upload(filePath, file);
+      
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data: publicUrlData } = supabase
+        .storage
+        .from('project_documents')
+        .getPublicUrl(filePath);
+      
+      if (!publicUrlData.publicUrl) throw new Error("Failed to get public URL");
+      
+      // Insert document record in the database
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          project_id: projectId,
+          name: documentName,
+          type: documentType,
+          url: publicUrlData.publicUrl,
+          uploaded_by: null // Will be replaced with actual user ID when auth is implemented
+        });
+      
+      if (dbError) throw dbError;
       
       toast({
         title: "Document uploaded",
@@ -64,14 +94,23 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
       // Reset form
       setDocumentName('');
       setDocumentType('');
-      setProject('');
       setFile(null);
+      setOpen(false);
       
       // Notify parent component
       if (onDocumentUploaded) {
         onDocumentUploaded();
       }
-    }, 1500);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your document. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -98,38 +137,20 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ onDocumentUploaded 
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="type">Document Type</Label>
-                <Select value={documentType} onValueChange={setDocumentType} required>
-                  <SelectTrigger id="type">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {documentTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="project">Project</Label>
-                <Select value={project} onValueChange={setProject} required>
-                  <SelectTrigger id="project">
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projectOptions.map((projectName) => (
-                      <SelectItem key={projectName} value={projectName}>
-                        {projectName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="type">Document Type</Label>
+              <Select value={documentType} onValueChange={setDocumentType} required>
+                <SelectTrigger id="type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {documentTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
             <div className="grid gap-2">

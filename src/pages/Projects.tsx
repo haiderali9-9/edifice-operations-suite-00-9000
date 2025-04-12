@@ -21,22 +21,25 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Project } from "@/types";
 import { Search, Plus, Filter, MoreHorizontal, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import NewProjectModal from "@/components/projects/NewProjectModal";
+import EditProjectModal from "@/components/projects/EditProjectModal";
+import { Project } from "@/types";
 
 const Projects = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // Fetch projects from Supabase
-  const { data: projects, isLoading, isError } = useQuery({
+  const { data: projects, isLoading, isError, refetch } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -47,7 +50,7 @@ const Projects = () => {
         throw new Error(error.message);
       }
       
-      return data || [];
+      return data as Project[] || [];
     },
   });
 
@@ -88,6 +91,35 @@ const Projects = () => {
 
   const handleNewProject = () => {
     setShowNewProjectModal(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setSelectedProject(project);
+    setShowEditProjectModal(true);
+  };
+
+  const handleViewTasks = (projectId: string) => {
+    navigate(`/projects/${projectId}`, { state: { initialTab: 'tasks' } });
+  };
+
+  const handleViewDocuments = (projectId: string) => {
+    navigate(`/projects/${projectId}`, { state: { initialTab: 'documents' } });
+  };
+
+  const handleProjectCreated = () => {
+    toast({
+      title: "Project Created",
+      description: "New project has been created successfully.",
+    });
+    refetch();
+  };
+
+  const handleProjectUpdated = () => {
+    toast({
+      title: "Project Updated",
+      description: "Project details have been updated successfully.",
+    });
+    refetch();
   };
 
   if (isError) {
@@ -224,28 +256,19 @@ const Projects = () => {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Feature Coming Soon",
-                              description: "Edit Project functionality will be implemented in the next step.",
-                            });
+                            handleEditProject(project);
                           }}>
                             Edit Project
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Feature Coming Soon",
-                              description: "View Tasks functionality will be implemented in the next step.",
-                            });
+                            handleViewTasks(project.id);
                           }}>
                             View Tasks
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Feature Coming Soon",
-                              description: "View Documents functionality will be implemented in the next step.",
-                            });
+                            handleViewDocuments(project.id);
                           }}>
                             View Documents
                           </DropdownMenuItem>
@@ -271,8 +294,18 @@ const Projects = () => {
       
       <NewProjectModal 
         isOpen={showNewProjectModal} 
-        onClose={() => setShowNewProjectModal(false)} 
+        onClose={() => setShowNewProjectModal(false)}
+        onProjectCreated={handleProjectCreated}
       />
+
+      {selectedProject && (
+        <EditProjectModal 
+          isOpen={showEditProjectModal}
+          onClose={() => setShowEditProjectModal(false)}
+          project={selectedProject}
+          onProjectUpdated={handleProjectUpdated}
+        />
+      )}
     </PageLayout>
   );
 };

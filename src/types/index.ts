@@ -5,12 +5,12 @@ export interface Project {
   description: string;
   client: string;
   location: string;
-  startDate: string;
-  endDate: string;
+  start_date: string;
+  end_date: string;
   budget: number;
   status: 'Planning' | 'In Progress' | 'On Hold' | 'Completed';
   completion: number;
-  manager: User;
+  manager_id: string;
 }
 
 export interface User {
@@ -23,15 +23,19 @@ export interface User {
 
 export interface Task {
   id: string;
-  projectId: string;
+  project_id: string;
   name: string;
   description: string;
-  assignedTo: User[];
-  startDate: string;
-  endDate: string;
   status: 'Not Started' | 'In Progress' | 'Completed' | 'Delayed';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  dependencies?: string[];
+  start_date: string;
+  end_date: string;
+}
+
+export interface TaskAssignment {
+  id: string;
+  task_id: string;
+  user_id: string;
 }
 
 export interface Resource {
@@ -41,11 +45,16 @@ export interface Resource {
   quantity: number;
   unit: string;
   cost: number;
-  allocated: {
-    projectId: string;
-    quantity: number;
-  }[];
   status: 'Available' | 'Low Stock' | 'Out of Stock';
+}
+
+export interface ResourceAllocation {
+  id: string;
+  resource_id: string;
+  project_id: string;
+  quantity: number;
+  start_date?: string;
+  end_date?: string;
 }
 
 export interface Expense {
@@ -61,23 +70,23 @@ export interface Expense {
 
 export interface Document {
   id: string;
-  projectId: string;
+  project_id: string;
   name: string;
   type: 'Contract' | 'Blueprint' | 'Permit' | 'Invoice' | 'Report' | 'Other';
-  uploadDate: string;
+  upload_date: string;
   url: string;
-  uploadedBy: string;
+  uploaded_by: string;
 }
 
 export interface Issue {
   id: string;
-  projectId: string;
+  project_id: string;
   title: string;
   description: string;
-  reportedBy: User;
-  assignedTo?: User;
-  reportDate: string;
+  reported_by: User | string;
+  assigned_to?: User | string;
+  report_date: string;
   status: 'Open' | 'In Progress' | 'Resolved';
   priority: 'Low' | 'Medium' | 'High' | 'Critical';
-  resolutionDate?: string;
+  resolution_date?: string;
 }

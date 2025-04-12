@@ -1,8 +1,7 @@
 
-import React from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
-import { projects, tasks, issues, expenses } from "@/data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -15,21 +14,86 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Calendar, Users, MapPin, DollarSign, Clock, ClipboardList, AlertCircle } from "lucide-react";
+import { 
+  ArrowLeft, Calendar, Users, MapPin, DollarSign, 
+  ClipboardList, AlertCircle, Loader2, Plus, File, 
+  FileText, Download 
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ProjectTeam from "@/components/projects/ProjectTeam";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { Project, Task, Document } from "@/types";
+import NewTaskModal from "@/components/tasks/NewTaskModal";
+import EditTaskModal from "@/components/tasks/EditTaskModal";
+import DocumentUploader from "@/components/documents/DocumentUploader";
 
 const ProjectDetails = () => {
-  const { projectId } = useParams();
+  const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   
-  // Find project by ID
-  const project = projects.find((p) => p.id === projectId);
+  // Get the initial tab from location state if available
+  const initialTab = location.state?.initialTab || 'tasks';
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Show/hide modal states
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  
+  // Fetch project data from Supabase
+  const { data: project, isLoading: projectLoading, isError: projectError, refetch: refetchProject } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single();
+      
+      if (error) throw error;
+      return data as Project;
+    },
+    enabled: !!projectId,
+  });
+
+  // Fetch project tasks
+  const { data: tasks, isLoading: tasksLoading, refetch: refetchTasks } = useQuery({
+    queryKey: ['project-tasks', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('start_date', { ascending: true });
+      
+      if (error) throw error;
+      return data as Task[];
+    },
+    enabled: !!projectId,
+  });
+
+  // Fetch project documents
+  const { data: documents, isLoading: documentsLoading, refetch: refetchDocuments } = useQuery({
+    queryKey: ['project-documents', projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('upload_date', { ascending: false });
+      
+      if (error) throw error;
+      return data as Document[];
+    },
+    enabled: !!projectId,
+  });
   
   // If project not found, show error
-  if (!project) {
+  if (projectError || (!projectLoading && !project)) {
     return (
       <PageLayout>
         <div className="flex flex-col items-center justify-center h-full">
@@ -43,16 +107,20 @@ const ProjectDetails = () => {
     );
   }
 
-  // Filter tasks and issues related to this project
-  const projectTasks = tasks.filter((task) => task.projectId === project.id);
-  const projectIssues = issues.filter((issue) => issue.projectId === project.id);
+  if (projectLoading) {
+    return (
+      <PageLayout>
+        <div className="flex flex-col items-center justify-center h-[70vh]">
+          <Loader2 className="h-12 w-12 animate-spin text-construction-600 mb-4" />
+          <p className="text-gray-500">Loading project details...</p>
+        </div>
+      </PageLayout>
+    );
+  }
   
   // Calculate stats
-  const completedTasks = projectTasks.filter((task) => task.status === "Completed").length;
-  const criticalIssues = projectIssues.filter((issue) => issue.priority === "Critical" && issue.status !== "Resolved").length;
-  
-  // Get project expenses
-  const projectExpenses = expenses.filter((expense) => expense.projectId === project.id);
+  const completedTasks = tasks ? tasks.filter(task => task.status === "Completed").length : 0;
+  const totalTasks = tasks ? tasks.length : 0;
   
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -81,10 +149,74 @@ const ProjectDetails = () => {
   // Calculate days remaining
   const daysRemaining = () => {
     const today = new Date();
-    const endDate = new Date(project.endDate);
+    const endDate = new Date(project.end_date);
     const diffTime = endDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 0;
+  };
+
+  // Handle task creation
+  const handleTaskCreated = () => {
+    toast({
+      title: "Task Created",
+      description: "New task has been added to the project.",
+    });
+    refetchTasks();
+  };
+
+  // Handle task editing
+  const handleEditTask = (task: Task) => {
+    setSelectedTask(task);
+    setShowEditTaskModal(true);
+  };
+
+  const handleTaskUpdated = () => {
+    toast({
+      title: "Task Updated",
+      description: "Task has been updated successfully.",
+    });
+    refetchTasks();
+  };
+
+  // Handle document upload
+  const handleDocumentUploaded = () => {
+    toast({
+      title: "Document Uploaded",
+      description: "Document has been added to the project.",
+    });
+    refetchDocuments();
+  };
+
+  const getTaskStatusBadge = (status: string) => {
+    switch (status) {
+      case "Not Started":
+        return <Badge variant="outline" className="bg-gray-100 text-gray-800">Not Started</Badge>;
+      case "In Progress":
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800">In Progress</Badge>;
+      case "Completed":
+        return <Badge variant="outline" className="bg-green-100 text-green-800">Completed</Badge>;
+      case "Delayed":
+        return <Badge variant="outline" className="bg-red-100 text-red-800">Delayed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getDocumentTypeIcon = (type: string) => {
+    switch (type) {
+      case "Contract":
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case "Blueprint":
+        return <File className="h-4 w-4 text-cyan-500" />;
+      case "Permit":
+        return <File className="h-4 w-4 text-green-500" />;
+      case "Invoice":
+        return <FileText className="h-4 w-4 text-amber-500" />;
+      case "Report":
+        return <FileText className="h-4 w-4 text-purple-500" />;
+      default:
+        return <File className="h-4 w-4 text-gray-500" />;
+    }
   };
 
   return (
@@ -111,10 +243,7 @@ const ProjectDetails = () => {
             <Button
               className="ml-4"
               onClick={() => {
-                toast({
-                  title: "Edit Project",
-                  description: "Project details updated successfully.",
-                });
+                navigate('/projects', { state: { editProject: project.id } });
               }}
             >
               Edit Project
@@ -135,7 +264,7 @@ const ProjectDetails = () => {
                 <p className="text-sm text-gray-500">Timeline</p>
                 <p className="text-lg font-medium">{daysRemaining()} days left</p>
                 <p className="text-xs text-gray-500">
-                  {new Date(project.startDate).toLocaleDateString()} - {new Date(project.endDate).toLocaleDateString()}
+                  {new Date(project.start_date).toLocaleDateString()} - {new Date(project.end_date).toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -151,9 +280,6 @@ const ProjectDetails = () => {
               <div>
                 <p className="text-sm text-gray-500">Budget</p>
                 <p className="text-lg font-medium">{formatCurrency(project.budget)}</p>
-                <p className="text-xs text-gray-500">
-                  {formatCurrency(projectExpenses.reduce((sum, expense) => sum + expense.amount, 0))} spent
-                </p>
               </div>
             </div>
           </CardContent>
@@ -167,9 +293,9 @@ const ProjectDetails = () => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Tasks</p>
-                <p className="text-lg font-medium">{completedTasks} / {projectTasks.length}</p>
+                <p className="text-lg font-medium">{completedTasks} / {totalTasks}</p>
                 <p className="text-xs text-gray-500">
-                  {Math.round((completedTasks / (projectTasks.length || 1)) * 100)}% completed
+                  {totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}% completed
                 </p>
               </div>
             </div>
@@ -183,11 +309,8 @@ const ProjectDetails = () => {
                 <AlertCircle className="h-5 w-5 text-red-500" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Issues</p>
-                <p className="text-lg font-medium">{projectIssues.length}</p>
-                <p className="text-xs text-gray-500">
-                  {criticalIssues} critical issues
-                </p>
+                <p className="text-sm text-gray-500">Documents</p>
+                <p className="text-lg font-medium">{documents ? documents.length : 0}</p>
               </div>
             </div>
           </CardContent>
@@ -211,94 +334,127 @@ const ProjectDetails = () => {
       </Card>
 
       {/* Project Tabs */}
-      <Tabs defaultValue="tasks" className="w-full">
+      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="issues">Issues</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
         
         <TabsContent value="tasks">
           <Card>
-            <CardHeader className="pb-0">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle>Project Tasks</CardTitle>
+              <Button size="sm" onClick={() => setShowNewTaskModal(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Add Task
+              </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task Name</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Assigned To</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {projectTasks.length > 0 ? (
-                    projectTasks.map((task) => (
-                      <TableRow key={task.id}>
-                        <TableCell className="font-medium">{task.name}</TableCell>
-                        <TableCell>{new Date(task.startDate).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(task.endDate).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Users className="h-4 w-4 mr-2 text-gray-400" />
-                            {task.assignedTo.length} assigned
-                          </div>
-                        </TableCell>
-                        <TableCell>{task.status}</TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
+              {tasksLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10 text-gray-500">
-                        No tasks added to this project yet
-                      </TableCell>
+                      <TableHead>Task Name</TableHead>
+                      <TableHead>Start Date</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks && tasks.length > 0 ? (
+                      tasks.map((task) => (
+                        <TableRow key={task.id}>
+                          <TableCell className="font-medium">{task.name}</TableCell>
+                          <TableCell>{task.start_date ? new Date(task.start_date).toLocaleDateString() : 'Not set'}</TableCell>
+                          <TableCell>{task.end_date ? new Date(task.end_date).toLocaleDateString() : 'Not set'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={
+                              task.priority === 'Critical' ? 'bg-red-100 text-red-800' :
+                              task.priority === 'High' ? 'bg-orange-100 text-orange-800' :
+                              task.priority === 'Medium' ? 'bg-blue-100 text-blue-800' :
+                              'bg-green-100 text-green-800'
+                            }>
+                              {task.priority}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{getTaskStatusBadge(task.status)}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)}>
+                              <FileText className="h-4 w-4" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                          No tasks added to this project yet
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="issues">
+        <TabsContent value="documents">
           <Card>
-            <CardHeader className="pb-0">
-              <CardTitle>Project Issues</CardTitle>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle>Project Documents</CardTitle>
+              <DocumentUploader 
+                projectId={projectId!} 
+                onDocumentUploaded={handleDocumentUploaded}
+              />
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Reported By</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Report Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {projectIssues.length > 0 ? (
-                    projectIssues.map((issue) => (
-                      <TableRow key={issue.id}>
-                        <TableCell className="font-medium">{issue.title}</TableCell>
-                        <TableCell>{issue.reportedBy.name}</TableCell>
-                        <TableCell>{issue.priority}</TableCell>
-                        <TableCell>{issue.status}</TableCell>
-                        <TableCell>{new Date(issue.reportDate).toLocaleDateString()}</TableCell>
-                      </TableRow>
+              {documentsLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {documents && documents.length > 0 ? (
+                    documents.map((document) => (
+                      <Card key={document.id} className="overflow-hidden">
+                        <CardContent className="p-0">
+                          <div className="p-6">
+                            <div className="flex items-center gap-2 mb-2">
+                              {getDocumentTypeIcon(document.type)}
+                              <span className="font-medium">{document.name}</span>
+                            </div>
+                            <div className="text-xs text-gray-500 mb-4">
+                              {new Date(document.upload_date).toLocaleString()}
+                            </div>
+                            <Badge variant="outline">{document.type}</Badge>
+                          </div>
+                          <div className="bg-gray-50 p-4 flex justify-between items-center">
+                            <span className="text-sm text-gray-500">{document.name.split('.').pop()?.toUpperCase()}</span>
+                            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" asChild>
+                              <a href={document.url} target="_blank" rel="noopener noreferrer">
+                                <Download className="h-4 w-4" />
+                                <span className="sr-only">Download</span>
+                              </a>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-10 text-gray-500">
-                        No issues reported for this project yet
-                      </TableCell>
-                    </TableRow>
+                    <div className="col-span-3 text-center py-12 text-gray-500">
+                      No documents uploaded to this project yet
+                    </div>
                   )}
-                </TableBody>
-              </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -314,6 +470,23 @@ const ProjectDetails = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Task Modals */}
+      <NewTaskModal
+        isOpen={showNewTaskModal}
+        onClose={() => setShowNewTaskModal(false)}
+        projectId={projectId!}
+        onTaskCreated={handleTaskCreated}
+      />
+
+      {selectedTask && (
+        <EditTaskModal
+          isOpen={showEditTaskModal}
+          onClose={() => setShowEditTaskModal(false)}
+          task={selectedTask}
+          onTaskUpdated={handleTaskUpdated}
+        />
+      )}
     </PageLayout>
   );
 };
