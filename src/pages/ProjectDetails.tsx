@@ -17,11 +17,12 @@ import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Calendar, Users, MapPin, DollarSign, 
   ClipboardList, AlertCircle, Loader2, Plus, File, 
-  FileText, Download 
+  FileText, Download, Package 
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ProjectTeam from "@/components/projects/ProjectTeam";
+import ProjectResources from "@/components/projects/ProjectResources";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Project, Task, Document } from "@/types";
@@ -44,20 +45,29 @@ const ProjectDetails = () => {
   const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   
-  // Fetch project data from Supabase
+  // Fetch project data from Supabase with proper error handling
   const { data: project, isLoading: projectLoading, isError: projectError, refetch: refetchProject } = useQuery({
     queryKey: ['project', projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-      
-      if (error) throw error;
-      return data as Project;
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .maybeSingle();
+        
+        if (error) throw error;
+        if (!data) throw new Error("Project not found");
+        
+        return data as Project;
+      } catch (error) {
+        console.error("Error fetching project:", error);
+        throw error;
+      }
     },
     enabled: !!projectId,
+    retry: 1, // Limit retries to avoid excessive requests on failure
+    staleTime: 30000, // Cache data for 30 seconds to avoid excessive refreshes
   });
 
   // Fetch project tasks
@@ -305,12 +315,15 @@ const ProjectDetails = () => {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center">
-              <div className="bg-red-100 p-3 rounded-full mr-4">
-                <AlertCircle className="h-5 w-5 text-red-500" />
+              <div className="bg-orange-100 p-3 rounded-full mr-4">
+                <Package className="h-5 w-5 text-orange-500" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Documents</p>
-                <p className="text-lg font-medium">{documents ? documents.length : 0}</p>
+                <p className="text-sm text-gray-500">Resources</p>
+                <p className="text-lg font-medium">
+                  {/* Resource count will be shown here */}
+                  <span className="text-sm text-gray-400">View in Resources tab</span>
+                </p>
               </div>
             </div>
           </CardContent>
@@ -337,6 +350,7 @@ const ProjectDetails = () => {
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="resources">Resources</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
         </TabsList>
@@ -402,6 +416,18 @@ const ProjectDetails = () => {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* New Resources Tab */}
+        <TabsContent value="resources">
+          <Card>
+            <CardHeader className="pb-0">
+              <CardTitle>Project Resources</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <ProjectResources projectId={project.id} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -472,14 +498,16 @@ const ProjectDetails = () => {
       </Tabs>
 
       {/* Task Modals */}
-      <NewTaskModal
-        isOpen={showNewTaskModal}
-        onClose={() => setShowNewTaskModal(false)}
-        projectId={projectId!}
-        onTaskCreated={handleTaskCreated}
-      />
+      {showNewTaskModal && (
+        <NewTaskModal
+          isOpen={showNewTaskModal}
+          onClose={() => setShowNewTaskModal(false)}
+          projectId={projectId!}
+          onTaskCreated={handleTaskCreated}
+        />
+      )}
 
-      {selectedTask && (
+      {showEditTaskModal && selectedTask && (
         <EditTaskModal
           isOpen={showEditTaskModal}
           onClose={() => setShowEditTaskModal(false)}
