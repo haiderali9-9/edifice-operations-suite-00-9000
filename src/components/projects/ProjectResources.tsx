@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -69,10 +70,12 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
 
       if (error) throw error;
 
+      // Fix the type casting for resources
       const formattedResources: ProjectResource[] = data.map(item => ({
         id: item.id,
         quantity: item.quantity,
-        resource: item.resources as Resource
+        // Cast the single resource object correctly, not as an array
+        resource: item.resources as unknown as Resource
       }));
 
       setProjectResources(formattedResources);

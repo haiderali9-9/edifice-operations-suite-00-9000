@@ -52,16 +52,26 @@ const ProjectTeam: React.FC<ProjectTeamProps> = ({ projectId, projectName }) => 
       
       if (teamError) throw teamError;
       
-      // Transform the data into the format we need
-      const formattedMembers = teamData.map(item => ({
-        id: item.id,
-        user_id: item.user_id,
-        name: item.profiles ? `${item.profiles.first_name || ''} ${item.profiles.last_name || ''}`.trim() : 'Unknown User',
-        role: item.role,
-        avatar: item.profiles?.avatar_url,
-        first_name: item.profiles?.first_name,
-        last_name: item.profiles?.last_name
-      }));
+      // Transform the data into the format we need, fixing the type issue
+      const formattedMembers = teamData.map(item => {
+        // Extract the profile from the response correctly
+        const profile = item.profiles as unknown as { 
+          id: string; 
+          first_name: string | null; 
+          last_name: string | null; 
+          avatar_url: string | null 
+        };
+        
+        return {
+          id: item.id,
+          user_id: item.user_id,
+          name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'Unknown User',
+          role: item.role,
+          avatar: profile?.avatar_url,
+          first_name: profile?.first_name,
+          last_name: profile?.last_name
+        };
+      });
       
       setTeamMembers(formattedMembers);
     } catch (error) {
