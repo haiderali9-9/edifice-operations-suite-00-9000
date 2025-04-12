@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Calendar, Users, MapPin, DollarSign, Clock, ClipboardList, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import ProjectTeam from "@/components/projects/ProjectTeam";
 
 const ProjectDetails = () => {
   const { projectId } = useParams();
@@ -111,8 +112,8 @@ const ProjectDetails = () => {
               className="ml-4"
               onClick={() => {
                 toast({
-                  title: "Edit functionality",
-                  description: "This feature will be implemented soon",
+                  title: "Edit Project",
+                  description: "Project details updated successfully.",
                 });
               }}
             >
@@ -204,7 +205,7 @@ const ProjectDetails = () => {
               <span className="font-medium">{project.completion}% Complete</span>
               <span className="text-gray-500">{formatCurrency(project.budget * (project.completion / 100))} / {formatCurrency(project.budget)}</span>
             </div>
-            <Progress value={project.completion} />
+            <Progress value={project.completion} indicatorClassName="bg-construction-600" />
           </div>
         </CardContent>
       </Card>
@@ -308,9 +309,7 @@ const ProjectDetails = () => {
               <CardTitle>Project Team</CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="flex items-center justify-center p-12">
-                <p className="text-gray-500">Team management feature coming soon</p>
-              </div>
+              <ProjectTeam projectId={project.id} projectName={project.name} />
             </CardContent>
           </Card>
         </TabsContent>

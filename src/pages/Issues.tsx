@@ -21,15 +21,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Issue } from "@/types";
-import { Search, Plus, Filter, MoreHorizontal, AlertTriangle } from "lucide-react";
+import { Search, Filter, MoreHorizontal, AlertTriangle } from "lucide-react";
+import IssueForm from "@/components/issues/IssueForm";
+import { useToast } from "@/hooks/use-toast";
 
 const Issues = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [issuesList, setIssuesList] = useState<Issue[]>(issues);
+  const { toast } = useToast();
 
   // Filter issues based on search term, status filter, and priority filter
-  const filteredIssues = issues.filter((issue) => {
+  const filteredIssues = issuesList.filter((issue) => {
     const matchesSearch =
       issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       issue.description.toLowerCase().includes(searchTerm.toLowerCase());
@@ -72,6 +76,49 @@ const Issues = () => {
         return <Badge variant="outline">{status}</Badge>;
     }
   };
+  
+  const handleIssueAction = (action: string, issue: Issue) => {
+    switch (action) {
+      case 'view':
+        toast({
+          title: "Issue Details",
+          description: issue.title,
+        });
+        break;
+      case 'edit':
+        toast({
+          title: "Edit Issue",
+          description: `Editing issue: ${issue.title}`,
+        });
+        break;
+      case 'assign':
+        toast({
+          title: "Assign Issue",
+          description: `Assigning issue: ${issue.title}`,
+        });
+        break;
+      case 'resolve':
+        const updatedIssues = issuesList.map(i => 
+          i.id === issue.id ? { ...i, status: "Resolved" } : i
+        );
+        setIssuesList(updatedIssues);
+        toast({
+          title: "Issue Resolved",
+          description: `Issue ${issue.title} has been marked as resolved`,
+        });
+        break;
+      default:
+        break;
+    }
+  };
+  
+  const handleIssueCreated = () => {
+    // In a real app, we would fetch the updated issues from the API
+    toast({
+      title: "Issue Submitted",
+      description: "Your issue has been reported and will be reviewed",
+    });
+  };
 
   return (
     <PageLayout>
@@ -82,9 +129,7 @@ const Issues = () => {
             Track and resolve problems across all projects
           </p>
         </div>
-        <Button className="bg-construction-700 hover:bg-construction-800">
-          <Plus className="h-4 w-4 mr-2" /> Report Issue
-        </Button>
+        <IssueForm onIssueCreated={handleIssueCreated} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -95,7 +140,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-gray-500" />
               </div>
               <p className="text-lg font-medium">
-                {issues.filter((i) => i.status === "Open").length}
+                {issuesList.filter((i) => i.status === "Open").length}
               </p>
               <p className="text-sm text-gray-500">Open</p>
             </div>
@@ -108,7 +153,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-blue-500" />
               </div>
               <p className="text-lg font-medium">
-                {issues.filter((i) => i.status === "In Progress").length}
+                {issuesList.filter((i) => i.status === "In Progress").length}
               </p>
               <p className="text-sm text-gray-500">In Progress</p>
             </div>
@@ -121,7 +166,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-green-500" />
               </div>
               <p className="text-lg font-medium">
-                {issues.filter((i) => i.status === "Resolved").length}
+                {issuesList.filter((i) => i.status === "Resolved").length}
               </p>
               <p className="text-sm text-gray-500">Resolved</p>
             </div>
@@ -134,7 +179,7 @@ const Issues = () => {
                 <AlertTriangle className="h-6 w-6 text-red-500" />
               </div>
               <p className="text-lg font-medium">
-                {issues.filter((i) => i.priority === "Critical" && i.status !== "Resolved").length}
+                {issuesList.filter((i) => i.priority === "Critical" && i.status !== "Resolved").length}
               </p>
               <p className="text-sm text-gray-500">Critical</p>
             </div>
@@ -244,11 +289,19 @@ const Issues = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit Issue</DropdownMenuItem>
-                        <DropdownMenuItem>Assign</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleIssueAction('view', issue)}>
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleIssueAction('edit', issue)}>
+                          Edit Issue
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleIssueAction('assign', issue)}>
+                          Assign
+                        </DropdownMenuItem>
                         {issue.status !== "Resolved" && (
-                          <DropdownMenuItem>Mark as Resolved</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleIssueAction('resolve', issue)}>
+                            Mark as Resolved
+                          </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

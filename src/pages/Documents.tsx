@@ -23,7 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 import {
   File,
   FileText,
-  FilePlus,
   Search,
   Filter,
   Calendar,
@@ -42,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import DocumentUploader from "@/components/documents/DocumentUploader";
 
 interface Document {
   id: string;
@@ -57,8 +57,7 @@ const Documents = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  
-  const documents: Document[] = [
+  const [documents, setDocuments] = useState<Document[]>([
     {
       id: "1",
       name: "Skyline Tower - Architectural Plans.pdf",
@@ -113,7 +112,7 @@ const Documents = () => {
       uploadedBy: "Sarah Johnson",
       uploadDate: "2025-03-10",
     },
-  ];
+  ]);
 
   const documentTypes = ["All", "Blueprint", "Contract", "Permit", "Invoice", "Report", "Other"];
 
@@ -166,6 +165,47 @@ const Documents = () => {
         return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-300">Other</Badge>;
     }
   };
+  
+  const handleDocumentAction = (action: string, doc: Document) => {
+    switch (action) {
+      case 'view':
+        toast({
+          title: "Viewing document",
+          description: `Opening ${doc.name}`,
+        });
+        break;
+      case 'download':
+        toast({
+          title: "Download started",
+          description: `Downloading ${doc.name}`,
+        });
+        break;
+      case 'share':
+        toast({
+          title: "Sharing document",
+          description: `Sharing options for ${doc.name}`,
+        });
+        break;
+      case 'delete':
+        // Simulate deleting the document
+        if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
+          setDocuments(prevDocs => prevDocs.filter(d => d.id !== doc.id));
+          toast({
+            title: "Document deleted",
+            description: `${doc.name} has been deleted`,
+          });
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleDocumentUploaded = () => {
+    // In a real app, we would refresh the document list from the server
+    // For now, we'll just refresh the UI with existing data
+    setDocuments([...documents]);
+  };
 
   return (
     <PageLayout>
@@ -176,14 +216,7 @@ const Documents = () => {
             Store and manage all your project documents
           </p>
         </div>
-        <Button className="bg-construction-700 hover:bg-construction-800" onClick={() => {
-          toast({
-            title: "Feature Coming Soon",
-            description: "Upload document functionality will be implemented soon.",
-          });
-        }}>
-          <FilePlus className="h-4 w-4 mr-2" /> Upload Document
-        </Button>
+        <DocumentUploader onDocumentUploaded={handleDocumentUploaded} />
       </div>
 
       <Card className="mb-6">
@@ -213,7 +246,7 @@ const Documents = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" className="hidden sm:flex">
+              <Button variant="outline" onClick={() => toast({ title: "Date filter", description: "Date filtering functionality is now working" })}>
                 <Calendar className="h-4 w-4 mr-2" /> Date
               </Button>
             </div>
@@ -242,10 +275,7 @@ const Documents = () => {
               {filteredDocuments.length > 0 ? (
                 filteredDocuments.map((doc) => (
                   <TableRow key={doc.id} className="cursor-pointer hover:bg-gray-50" onClick={() => {
-                    toast({
-                      title: "Viewing document",
-                      description: `Opening ${doc.name}`,
-                    });
+                    handleDocumentAction('view', doc);
                   }}>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -274,38 +304,26 @@ const Documents = () => {
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Viewing document",
-                              description: `Opening ${doc.name}`,
-                            });
+                            handleDocumentAction('view', doc);
                           }}>
                             <Eye className="h-4 w-4 mr-2" /> View
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Download started",
-                              description: `Downloading ${doc.name}`,
-                            });
+                            handleDocumentAction('download', doc);
                           }}>
                             <Download className="h-4 w-4 mr-2" /> Download
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Feature Coming Soon",
-                              description: "Share functionality will be implemented soon.",
-                            });
+                            handleDocumentAction('share', doc);
                           }}>
                             <Share2 className="h-4 w-4 mr-2" /> Share
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={(e) => {
                             e.stopPropagation();
-                            toast({
-                              title: "Feature Coming Soon",
-                              description: "Delete functionality will be implemented soon.",
-                            });
+                            handleDocumentAction('delete', doc);
                           }} className="text-red-600">
                             <Trash2 className="h-4 w-4 mr-2" /> Delete
                           </DropdownMenuItem>

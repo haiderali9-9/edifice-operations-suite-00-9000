@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,15 +15,69 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import InvoiceForm from "@/components/finances/InvoiceForm";
+import InvoiceList, { Invoice } from "@/components/finances/InvoiceList";
 
 const Finances = () => {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("overview");
+  const [invoices, setInvoices] = useState<Invoice[]>([
+    {
+      id: "1",
+      number: "INV-230415-0001",
+      client: "Acme Development Corp",
+      project: "Skyline Tower",
+      amount: 25000,
+      issueDate: "2025-04-01",
+      dueDate: "2025-04-30",
+      status: "sent"
+    },
+    {
+      id: "2",
+      number: "INV-230405-0002",
+      client: "Coastal Living Group",
+      project: "Oceanview Residences",
+      amount: 18500,
+      issueDate: "2025-04-05",
+      dueDate: "2025-05-05",
+      status: "draft"
+    },
+    {
+      id: "3",
+      number: "INV-230320-0003",
+      client: "Metropolitan Builders Inc",
+      project: "Central Business Hub",
+      amount: 42000,
+      issueDate: "2025-03-20",
+      dueDate: "2025-04-19",
+      status: "paid"
+    }
+  ]);
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
     }).format(amount);
+  };
+
+  const handleAddTransaction = () => {
+    toast({
+      title: "Add Transaction",
+      description: "Transaction form will appear here",
+    });
+  };
+
+  const handleStatusChange = (invoiceId: string, newStatus: Invoice['status']) => {
+    setInvoices(prev => prev.map(invoice => 
+      invoice.id === invoiceId ? { ...invoice, status: newStatus } : invoice
+    ));
+  };
+
+  const handleInvoiceCreated = () => {
+    // In a real app, we would fetch the updated invoices from the API
+    // For now, let's just switch to the invoices tab
+    setActiveTab("invoices");
   };
 
   // Mock financial data
@@ -59,12 +113,7 @@ const Finances = () => {
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
-          <Button className="bg-construction-700 hover:bg-construction-800" onClick={() => {
-            toast({
-              title: "Feature Coming Soon",
-              description: "Add transaction functionality will be implemented soon.",
-            });
-          }}>
+          <Button className="bg-construction-700 hover:bg-construction-800" onClick={handleAddTransaction}>
             <Plus className="h-4 w-4 mr-2" /> Add Transaction
           </Button>
         </div>
@@ -132,7 +181,7 @@ const Finances = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview" className="mb-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
@@ -244,27 +293,25 @@ const Finances = () => {
                 <Button variant="outline" size="sm">
                   <Filter className="h-4 w-4 mr-2" /> Filter
                 </Button>
-                <Button variant="outline" size="sm">
-                  <FilePlus className="h-4 w-4 mr-2" /> New Invoice
-                </Button>
+                <InvoiceForm onInvoiceCreated={handleInvoiceCreated} />
               </div>
             </CardHeader>
-            <CardContent className="flex items-center justify-center p-12">
-              <div className="text-center">
-                <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-1">No invoices yet</h3>
-                <p className="text-gray-500 mb-4">
-                  Create your first invoice to start tracking payments
-                </p>
-                <Button onClick={() => {
-                  toast({
-                    title: "Feature Coming Soon",
-                    description: "Invoice creation functionality will be implemented soon.",
-                  });
-                }}>
-                  <Plus className="h-4 w-4 mr-2" /> Create Invoice
-                </Button>
-              </div>
+            <CardContent>
+              {invoices.length > 0 ? (
+                <InvoiceList
+                  invoices={invoices}
+                  onStatusChange={handleStatusChange}
+                />
+              ) : (
+                <div className="text-center p-12">
+                  <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-1">No invoices yet</h3>
+                  <p className="text-gray-500 mb-4">
+                    Create your first invoice to start tracking payments
+                  </p>
+                  <InvoiceForm onInvoiceCreated={handleInvoiceCreated} />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -274,11 +321,24 @@ const Finances = () => {
             <CardHeader>
               <CardTitle>Financial Reports</CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-center p-12">
-              <div className="text-center">
-                <p className="text-gray-500 mb-4">
-                  Financial reports will be available in a future update.
-                </p>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Button className="h-auto py-8 flex flex-col items-center justify-center" variant="outline">
+                  <FileText className="h-12 w-12 mb-2 text-gray-500" />
+                  <span className="text-lg font-medium">Monthly Budget Report</span>
+                </Button>
+                <Button className="h-auto py-8 flex flex-col items-center justify-center" variant="outline">
+                  <FileText className="h-12 w-12 mb-2 text-gray-500" />
+                  <span className="text-lg font-medium">Project Expense Report</span>
+                </Button>
+                <Button className="h-auto py-8 flex flex-col items-center justify-center" variant="outline">
+                  <FileText className="h-12 w-12 mb-2 text-gray-500" />
+                  <span className="text-lg font-medium">Annual Financial Summary</span>
+                </Button>
+                <Button className="h-auto py-8 flex flex-col items-center justify-center" variant="outline">
+                  <FileText className="h-12 w-12 mb-2 text-gray-500" />
+                  <span className="text-lg font-medium">Custom Report</span>
+                </Button>
               </div>
             </CardContent>
           </Card>

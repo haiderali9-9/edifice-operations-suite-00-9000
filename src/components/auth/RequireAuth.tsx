@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -17,6 +17,11 @@ const RequireAuth: React.FC = () => {
     );
   }
 
+  // TEMPORARY: Bypass authentication check for testing
+  // When you're ready to re-enable auth, remove the next line and uncomment the block below
+  return <Outlet />;
+
+  /* UNCOMMENT THIS WHEN YOU WANT TO RESTORE AUTHENTICATION
   // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
@@ -24,6 +29,7 @@ const RequireAuth: React.FC = () => {
 
   // If authenticated, show the protected routes
   return <Outlet />;
+  */
 };
 
 export default RequireAuth;

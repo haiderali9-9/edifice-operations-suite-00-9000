@@ -3,8 +3,9 @@ import React from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import EventForm from "@/components/schedule/EventForm";
 
 const Schedule = () => {
   const { toast } = useToast();
@@ -106,6 +107,71 @@ const Schedule = () => {
            date.getFullYear() === today.getFullYear();
   };
 
+  const handleEventCreated = () => {
+    // In a real app, we would refresh the schedule from the API
+    // For now, just refresh the UI with the existing data
+  };
+  
+  // Upcoming deadlines
+  const upcomingDeadlines = [
+    {
+      id: 1,
+      title: "Submit Building Permit",
+      project: "Skyline Tower",
+      dueDate: new Date(currentDate.getTime() + 3 * 24 * 60 * 60 * 1000),
+      priority: "high",
+    },
+    {
+      id: 2,
+      title: "Complete Foundation Work",
+      project: "Oceanview Residences",
+      dueDate: new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000),
+      priority: "medium",
+    },
+    {
+      id: 3,
+      title: "Final Inspection",
+      project: "Central Business Hub",
+      dueDate: new Date(currentDate.getTime() + 14 * 24 * 60 * 60 * 1000),
+      priority: "high",
+    },
+  ];
+  
+  // Resource allocation data
+  const resources = [
+    {
+      id: 1,
+      name: "Crane #1",
+      allocation: [
+        { project: "Skyline Tower", day: 1, hours: 8 },
+        { project: "Skyline Tower", day: 2, hours: 8 },
+        { project: "Central Business Hub", day: 3, hours: 8 },
+        { project: "Central Business Hub", day: 4, hours: 8 },
+        { project: "Oceanview Residences", day: 5, hours: 8 },
+      ]
+    },
+    {
+      id: 2,
+      name: "Concrete Mixer",
+      allocation: [
+        { project: "Central Business Hub", day: 1, hours: 8 },
+        { project: "Riverside Complex", day: 3, hours: 6 },
+        { project: "Skyline Tower", day: 4, hours: 8 },
+        { project: "Skyline Tower", day: 5, hours: 4 },
+      ]
+    },
+    {
+      id: 3,
+      name: "Excavator",
+      allocation: [
+        { project: "Mountain View Condos", day: 1, hours: 8 },
+        { project: "Mountain View Condos", day: 2, hours: 8 },
+        { project: "Oceanview Residences", day: 4, hours: 8 },
+        { project: "Oceanview Residences", day: 5, hours: 8 },
+      ]
+    },
+  ];
+
   return (
     <PageLayout>
       <div className="mb-6 flex justify-between items-center">
@@ -122,14 +188,7 @@ const Schedule = () => {
           <Button variant="outline" onClick={() => navigateWeek('next')}>
             Next Week <ChevronRight className="h-4 w-4 ml-2" />
           </Button>
-          <Button className="bg-construction-700 hover:bg-construction-800" onClick={() => {
-            toast({
-              title: "Feature Coming Soon",
-              description: "New event functionality will be implemented soon.",
-            });
-          }}>
-            <Plus className="h-4 w-4 mr-2" /> New Event
-          </Button>
+          <EventForm onEventCreated={handleEventCreated} />
         </div>
       </div>
 
@@ -190,11 +249,30 @@ const Schedule = () => {
             <CardTitle>Upcoming Deadlines</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-500 text-center py-8">
-              Upcoming deadlines will be displayed here.
-              <br />
-              This feature will be implemented in a future update.
-            </p>
+            {upcomingDeadlines.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingDeadlines.map((deadline) => (
+                  <div key={deadline.id} className="flex items-center justify-between border-b pb-4">
+                    <div>
+                      <h4 className="font-medium">{deadline.title}</h4>
+                      <p className="text-sm text-gray-500">{deadline.project}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{deadline.dueDate.toLocaleDateString()}</p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        deadline.priority === 'high' 
+                          ? 'bg-red-100 text-red-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {deadline.priority === 'high' ? 'High Priority' : 'Medium Priority'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No upcoming deadlines</p>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -202,11 +280,41 @@ const Schedule = () => {
             <CardTitle>Resource Allocation</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-500 text-center py-8">
-              Resource allocation calendar will be displayed here.
-              <br />
-              This feature will be implemented in a future update.
-            </p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left pb-3">Resource</th>
+                    <th className="text-center pb-3">Mon</th>
+                    <th className="text-center pb-3">Tue</th>
+                    <th className="text-center pb-3">Wed</th>
+                    <th className="text-center pb-3">Thu</th>
+                    <th className="text-center pb-3">Fri</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resources.map((resource) => (
+                    <tr key={resource.id} className="border-t">
+                      <td className="py-3 font-medium">{resource.name}</td>
+                      {[1, 2, 3, 4, 5].map((day) => {
+                        const allocation = resource.allocation.find(a => a.day === day);
+                        return (
+                          <td key={day} className="py-3 text-center">
+                            {allocation ? (
+                              <div className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 text-xs">
+                                {allocation.project.split(' ')[0]} ({allocation.hours}h)
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       </div>

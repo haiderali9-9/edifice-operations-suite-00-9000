@@ -1,6 +1,5 @@
 
-import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,17 +10,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   Users, 
   Search, 
-  UserPlus, 
   MoreHorizontal, 
   Mail, 
   Phone, 
-  Briefcase, 
-  Loader2 
+  Briefcase
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -31,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { supabase } from "@/lib/supabase";
+import TeamMemberForm from "@/components/team/TeamMemberForm";
 
 interface TeamMember {
   id: string;
@@ -48,25 +44,7 @@ interface TeamMember {
 const Team = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
-
-  // Fetch team members from Supabase
-  const { data: teamMembers, isLoading, error } = useQuery({
-    queryKey: ['team-members'],
-    queryFn: async () => {
-      // In a real app, this would pull from a team or employees table
-      // For now, we'll fetch from the profiles table
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        
-      if (error) throw error;
-      
-      return data as TeamMember[];
-    }
-  });
-
-  // Mock function for demonstration
-  const mockTeamMembers: TeamMember[] = [
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     {
       id: "1",
       first_name: "John",
@@ -117,13 +95,10 @@ const Team = () => {
       position: "Safety Coordinator",
       department: "Safety",
     }
-  ];
+  ]);
 
-  // Combine real and mock data
-  const allTeamMembers = teamMembers ? [...teamMembers, ...mockTeamMembers] : mockTeamMembers;
-  
   // Filter team members based on search term
-  const filteredTeamMembers = allTeamMembers.filter(member => {
+  const filteredTeamMembers = teamMembers.filter(member => {
     const fullName = `${member.first_name} ${member.last_name}`.toLowerCase();
     return (
       fullName.includes(searchTerm.toLowerCase()) ||
@@ -136,6 +111,31 @@ const Team = () => {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`;
   };
 
+  const handleMemberAdded = () => {
+    // In a real app, we would fetch the updated team members from the API
+  };
+
+  const handleViewProfile = (member: TeamMember) => {
+    toast({
+      title: "Member Profile",
+      description: `Viewing profile for ${member.first_name} ${member.last_name}`,
+    });
+  };
+
+  const handleEditMember = (member: TeamMember) => {
+    toast({
+      title: "Edit Member",
+      description: `Editing profile for ${member.first_name} ${member.last_name}`,
+    });
+  };
+
+  const handleViewProjects = (member: TeamMember) => {
+    toast({
+      title: "Member Projects",
+      description: `Viewing projects for ${member.first_name} ${member.last_name}`,
+    });
+  };
+
   return (
     <PageLayout>
       <div className="mb-6 flex justify-between items-center">
@@ -145,9 +145,7 @@ const Team = () => {
             Manage and coordinate your team members
           </p>
         </div>
-        <Button className="bg-construction-700 hover:bg-construction-800">
-          <UserPlus className="h-4 w-4 mr-2" /> Add Team Member
-        </Button>
+        <TeamMemberForm onMemberAdded={handleMemberAdded} />
       </div>
 
       <Card className="mb-6">
@@ -171,104 +169,83 @@ const Team = () => {
           <CardTitle className="text-xl">Team Members</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center p-12">
-              <Loader2 className="h-8 w-8 animate-spin text-construction-600" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredTeamMembers.length > 0 ? (
-                  filteredTeamMembers.map((member) => (
-                    <TableRow key={member.id}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={member.avatar_url || undefined} alt={`${member.first_name} ${member.last_name}`} />
-                            <AvatarFallback className="bg-construction-100 text-construction-700">
-                              {getInitials(member.first_name, member.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            {`${member.first_name} ${member.last_name}`}
-                            <div className="text-xs text-gray-500">
-                              {member.position}
-                            </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTeamMembers.length > 0 ? (
+                filteredTeamMembers.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={member.avatar_url || undefined} alt={`${member.first_name} ${member.last_name}`} />
+                          <AvatarFallback className="bg-construction-100 text-construction-700">
+                            {getInitials(member.first_name, member.last_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          {`${member.first_name} ${member.last_name}`}
+                          <div className="text-xs text-gray-500">
+                            {member.position}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell>{member.role}</TableCell>
-                      <TableCell>{member.department || 'N/A'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3 text-gray-400" />
-                          <span className="text-sm">{member.email || 'Not specified'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3 text-gray-400" />
-                          <span className="text-sm">{member.phone || 'Not specified'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              toast({
-                                title: "Feature Coming Soon",
-                                description: "View profile functionality will be implemented soon.",
-                              });
-                            }}>
-                              View Profile
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              toast({
-                                title: "Feature Coming Soon",
-                                description: "Edit member functionality will be implemented soon.",
-                              });
-                            }}>
-                              Edit Member
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                              toast({
-                                title: "Feature Coming Soon",
-                                description: "View projects functionality will be implemented soon.",
-                              });
-                            }}>
-                              View Projects
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-10 text-gray-500">
-                      No team members found matching your search criteria
+                      </div>
+                    </TableCell>
+                    <TableCell>{member.role}</TableCell>
+                    <TableCell>{member.department || 'N/A'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Mail className="h-3 w-3 text-gray-400" />
+                        <span className="text-sm">{member.email || 'Not specified'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Phone className="h-3 w-3 text-gray-400" />
+                        <span className="text-sm">{member.phone || 'Not specified'}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="bg-transparent p-2 rounded-full hover:bg-gray-100">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewProfile(member)}>
+                            View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditMember(member)}>
+                            Edit Member
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewProjects(member)}>
+                            View Projects
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                    No team members found matching your search criteria
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </PageLayout>
