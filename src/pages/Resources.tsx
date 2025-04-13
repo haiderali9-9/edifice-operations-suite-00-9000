@@ -20,19 +20,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Resource } from "@/types";
-import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2 } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2, Pencil, RotateCcw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ResourceStatus from "@/components/dashboard/ResourceStatus";
 import AddResourceModal from "@/components/resources/AddResourceModal";
+import EditResourceModal from "@/components/resources/EditResourceModal";
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [isAddResourceModalOpen, setIsAddResourceModalOpen] = useState(false);
+  const [isEditResourceModalOpen, setIsEditResourceModalOpen] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   
   // Fetch resources from Supabase
   const { data: resources, isLoading: resourcesLoading, error, refetch } = useQuery({
@@ -158,9 +161,49 @@ const Resources = () => {
     setIsAddResourceModalOpen(true);
   };
 
+  const handleEditResource = (resource: Resource) => {
+    setSelectedResource(resource);
+    setIsEditResourceModalOpen(true);
+  };
+
   const handleResourceAdded = () => {
     refetch();
     toast.success("Resource added successfully");
+  };
+
+  const handleResourceUpdated = () => {
+    refetch();
+    toast.success("Resource updated successfully");
+    setIsEditResourceModalOpen(false);
+    setSelectedResource(null);
+  };
+  
+  const handleReturnResource = async (resource: Resource) => {
+    // Only allow returning resources that are returnable and have allocations
+    if (!resource.returnable || !resource.resource_allocations || resource.resource_allocations.length === 0) {
+      toast.error("This resource cannot be returned");
+      return;
+    }
+    
+    try {
+      // For simplicity, this example just deletes the allocation
+      // In a real app, you might want to create a return record and update inventory
+      const { error } = await supabase
+        .from('resource_allocations')
+        .delete()
+        .eq('resource_id', resource.id);
+      
+      if (error) throw error;
+      
+      toast.success("Resource marked as returned", {
+        description: `${resource.name} has been returned to inventory.`
+      });
+      
+      refetch();
+    } catch (error) {
+      console.error("Error returning resource:", error);
+      toast.error("Failed to process the return");
+    }
   };
   
   return (
@@ -295,7 +338,7 @@ const Resources = () => {
                     <TableHead>Unit</TableHead>
                     <TableHead>Cost</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
+                    <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -322,20 +365,29 @@ const Resources = () => {
                         <TableCell>{formatCurrency(resource.cost)} / {resource.unit}</TableCell>
                         <TableCell>{getStatusBadge(resource.status)}</TableCell>
                         <TableCell>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Open menu</span>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => handleEditResource(resource)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            
+                            {resource.returnable && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-green-600"
+                                onClick={() => handleReturnResource(resource)}
+                                disabled={!resource.resource_allocations || resource.resource_allocations.length === 0}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                <span className="sr-only">Return</span>
                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Resource</DropdownMenuItem>
-                              <DropdownMenuItem>View Allocation</DropdownMenuItem>
-                              <DropdownMenuItem>Order More</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -362,6 +414,15 @@ const Resources = () => {
         onOpenChange={setIsAddResourceModalOpen}
         onResourceAdded={handleResourceAdded}
       />
+      
+      {selectedResource && (
+        <EditResourceModal
+          open={isEditResourceModalOpen}
+          onOpenChange={setIsEditResourceModalOpen}
+          resource={selectedResource}
+          onResourceUpdated={handleResourceUpdated}
+        />
+      )}
     </PageLayout>
   );
 };

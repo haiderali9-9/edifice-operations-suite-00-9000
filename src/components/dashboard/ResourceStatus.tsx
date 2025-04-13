@@ -12,7 +12,9 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeftRight } from "lucide-react";
+import { Loader2, ArrowLeftRight, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ResourceStatusProps {
   resources?: Resource[];
@@ -50,6 +52,34 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
       <Badge variant="outline" className="bg-teal-100 text-teal-800">Consumable</Badge>;
   };
 
+  const handleReturnResource = async (resource: Resource) => {
+    // Only allow returning resources that are returnable and have allocations
+    if (!resource.returnable || !resource.resource_allocations || resource.resource_allocations.length === 0) {
+      toast.error("This resource cannot be returned");
+      return;
+    }
+    
+    try {
+      // For simplicity, this example just deletes the allocation
+      const { error } = await supabase
+        .from('resource_allocations')
+        .delete()
+        .eq('resource_id', resource.id);
+      
+      if (error) throw error;
+      
+      toast.success("Resource marked as returned", {
+        description: `${resource.name} has been returned to inventory.`
+      });
+      
+      // You would typically refetch resources here
+      // This component would need to be updated to include a refetch mechanism
+    } catch (error) {
+      console.error("Error returning resource:", error);
+      toast.error("Failed to process the return");
+    }
+  };
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -69,6 +99,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Status</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,11 +113,24 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                       {resource.quantity - (resource.resource_allocations?.reduce((sum, a) => sum + a.quantity, 0) || 0)} / {resource.quantity} {resource.unit}
                     </TableCell>
                     <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
+                    <TableCell>
+                      {resource.returnable && resource.resource_allocations && resource.resource_allocations.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-green-600"
+                          onClick={() => handleReturnResource(resource)}
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          <span className="sr-only">Return</span>
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-6 text-gray-500">
                     No resources available
                   </TableCell>
                 </TableRow>
