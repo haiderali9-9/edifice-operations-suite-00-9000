@@ -11,12 +11,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import Index from "./pages/Index";
 
+// Import Issues page directly instead of lazy loading it
+import Issues from "./pages/Issues";
+
 // Lazy load all other pages for better performance
 const Auth = React.lazy(() => import("./pages/Auth"));
 const Projects = React.lazy(() => import("./pages/Projects"));
 const ProjectDetails = React.lazy(() => import("./pages/ProjectDetails"));
 const Resources = React.lazy(() => import("./pages/Resources"));
-const Issues = React.lazy(() => import("./pages/Issues"));
 const Team = React.lazy(() => import("./pages/Team"));
 const Schedule = React.lazy(() => import("./pages/Schedule"));
 const Finances = React.lazy(() => import("./pages/Finances"));
@@ -66,6 +68,7 @@ const App: React.FC = () => {
                   <Route path="/finances" element={<Finances />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/documents" element={<Documents />} />
+                  {/* Using regular import for Issues instead of lazy loaded */}
                   <Route path="/issues" element={<Issues />} />
                   <Route path="/settings" element={<Settings />} />
                 </Route>
