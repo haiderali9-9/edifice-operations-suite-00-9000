@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { Project, Resource } from '@/types';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface EventFormProps {
   onEventCreated?: () => void;
@@ -37,14 +39,13 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [description, setDescription] = useState('');
-
-  const projects = [
-    'Skyline Tower', 
-    'Oceanview Residences', 
-    'Central Business Hub', 
-    'Riverside Complex', 
-    'Mountain View Condos'
-  ];
+  const [selectedResources, setSelectedResources] = useState<string[]>([]);
+  
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
 
   const eventTypes = [
     'meeting',
@@ -58,6 +59,76 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
     'field': 'Field Work',
     'construction': 'Construction',
     'milestone': 'Milestone'
+  };
+  
+  useEffect(() => {
+    if (open) {
+      fetchProjects();
+      fetchResources();
+    }
+  }, [open]);
+  
+  const fetchProjects = async () => {
+    setIsLoadingProjects(true);
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      toast({
+        title: "Error loading projects",
+        description: "Could not load projects from the database.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  };
+  
+  const fetchResources = async () => {
+    setIsLoadingResources(true);
+    try {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      setResources(data || []);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+      toast({
+        title: "Error loading resources",
+        description: "Could not load resources from the database.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingResources(false);
+    }
+  };
+  
+  const handleToggleResource = (resourceId: string) => {
+    setSelectedResources(prev => 
+      prev.includes(resourceId) 
+        ? prev.filter(id => id !== resourceId) 
+        : [...prev, resourceId]
+    );
+  };
+
+  const resetForm = () => {
+    setTitle('');
+    setProject('');
+    setType('');
+    setDate('');
+    setStartTime('');
+    setEndTime('');
+    setDescription('');
+    setSelectedResources([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,30 +145,45 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
     
     setIsSubmitting(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setOpen(false);
+    try {
+      const { data: eventData, error: eventError } = await supabase
+        .from('schedule_events')
+        .insert({
+          title,
+          project_id: project,
+          type,
+          date,
+          start_time: startTime,
+          end_time: endTime,
+          description: description || null,
+          resource_ids: selectedResources.length > 0 ? selectedResources : null
+        })
+        .select()
+        .single();
+      
+      if (eventError) throw eventError;
       
       toast({
         title: "Event created",
         description: `${title} has been added to the schedule.`,
       });
       
-      // Reset form
-      setTitle('');
-      setProject('');
-      setType('');
-      setDate('');
-      setStartTime('');
-      setEndTime('');
-      setDescription('');
+      resetForm();
+      setOpen(false);
       
-      // Notify parent component
       if (onEventCreated) {
         onEventCreated();
       }
-    }, 1000);
+    } catch (error) {
+      console.error('Error creating event:', error);
+      toast({
+        title: "Error creating event",
+        description: "There was a problem saving your event.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -129,12 +215,12 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
                 <Label htmlFor="project">Project</Label>
                 <Select value={project} onValueChange={setProject} required>
                   <SelectTrigger id="project">
-                    <SelectValue placeholder="Select project" />
+                    <SelectValue placeholder={isLoadingProjects ? "Loading..." : "Select project"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map((projectName) => (
-                      <SelectItem key={projectName} value={projectName}>
-                        {projectName}
+                    {projects.map((projectItem) => (
+                      <SelectItem key={projectItem.id} value={projectItem.id}>
+                        {projectItem.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -201,6 +287,38 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Event details..."
               />
+            </div>
+            
+            <div className="grid gap-2">
+              <Label>Resources</Label>
+              <div className="max-h-[150px] overflow-y-auto border rounded-md p-3">
+                {isLoadingResources ? (
+                  <div className="flex items-center justify-center p-4">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading resources...
+                  </div>
+                ) : resources.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {resources.map((resource) => (
+                      <div key={resource.id} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`resource-${resource.id}`}
+                          checked={selectedResources.includes(resource.id)}
+                          onCheckedChange={() => handleToggleResource(resource.id)}
+                        />
+                        <label 
+                          htmlFor={`resource-${resource.id}`}
+                          className="text-sm cursor-pointer"
+                        >
+                          {resource.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 text-center py-2">No resources available</p>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">Allocate resources for this event</p>
             </div>
           </div>
           <DialogFooter>

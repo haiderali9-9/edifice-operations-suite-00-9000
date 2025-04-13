@@ -1,11 +1,13 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import EventForm from "@/components/schedule/EventForm";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const Schedule = () => {
   const { toast } = useToast();
@@ -14,7 +16,7 @@ const Schedule = () => {
   const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
   const currentYear = currentDate.getFullYear();
 
-  const [currentWeek, setCurrentWeek] = React.useState(getWeekDates(currentDate));
+  const [currentWeek, setCurrentWeek] = useState(getWeekDates(currentDate));
 
   function getWeekDates(date: Date) {
     const week = [];
@@ -37,44 +39,48 @@ const Schedule = () => {
     firstDay.setDate(firstDay.getDate() + daysToAdd);
     setCurrentWeek(getWeekDates(firstDay));
   };
-
-  // Mock schedule data
-  const scheduleItems = [
-    {
-      id: 1,
-      title: "Team Meeting",
-      project: "Skyline Tower",
-      type: "meeting",
-      start: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 9, 0),
-      end: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 10, 30),
-    },
-    {
-      id: 2,
-      title: "Site Inspection",
-      project: "Oceanview Residences",
-      type: "field",
-      start: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 13, 0),
-      end: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate(), 15, 0),
-    },
-    {
-      id: 3,
-      title: "Concrete Pouring",
-      project: "Central Business Hub",
-      type: "construction",
-      start: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1, 8, 0),
-      end: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 1, 16, 0),
-    },
-    {
-      id: 4,
-      title: "Client Review",
-      project: "Skyline Tower",
-      type: "meeting",
-      start: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 2, 14, 0),
-      end: new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate() + 2, 15, 30),
+  
+  // Fetch schedule events from Supabase
+  const { data: scheduleItems, isLoading, refetch } = useQuery({
+    queryKey: ['schedule-events', currentWeek[0], currentWeek[6]],
+    queryFn: async () => {
+      // Get the start and end dates of the current week
+      const startDate = currentWeek[0].toISOString().split('T')[0];
+      const endDate = currentWeek[6].toISOString().split('T')[0];
+      
+      // Fetch events for the current week
+      const { data, error } = await supabase
+        .from('schedule_events')
+        .select(`
+          *,
+          projects:project_id(name)
+        `)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date');
+        
+      if (error) {
+        console.error('Error fetching schedule events:', error);
+        throw error;
+      }
+      
+      // Transform the data to match the expected format
+      return data.map(item => ({
+        id: item.id,
+        title: item.title,
+        project: item.projects?.name || '',
+        type: item.type,
+        start: new Date(`${item.date}T${item.start_time}`),
+        end: new Date(`${item.date}T${item.end_time}`),
+        description: item.description,
+        resourceIds: item.resource_ids || []
+      }));
     }
-  ];
+  });
 
   const getScheduleItemsForDate = (date: Date) => {
+    if (!scheduleItems) return [];
+    
     return scheduleItems.filter(item => {
       const itemDate = new Date(item.start);
       return itemDate.getDate() === date.getDate() && 
@@ -108,69 +114,90 @@ const Schedule = () => {
   };
 
   const handleEventCreated = () => {
-    // In a real app, we would refresh the schedule from the API
-    // For now, just refresh the UI with the existing data
+    // Refresh the events from the database
+    refetch();
   };
   
-  // Upcoming deadlines
-  const upcomingDeadlines = [
-    {
-      id: 1,
-      title: "Submit Building Permit",
-      project: "Skyline Tower",
-      dueDate: new Date(currentDate.getTime() + 3 * 24 * 60 * 60 * 1000),
-      priority: "high",
-    },
-    {
-      id: 2,
-      title: "Complete Foundation Work",
-      project: "Oceanview Residences",
-      dueDate: new Date(currentDate.getTime() + 7 * 24 * 60 * 60 * 1000),
-      priority: "medium",
-    },
-    {
-      id: 3,
-      title: "Final Inspection",
-      project: "Central Business Hub",
-      dueDate: new Date(currentDate.getTime() + 14 * 24 * 60 * 60 * 1000),
-      priority: "high",
-    },
-  ];
+  // Fetch upcoming deadlines from Supabase
+  const { data: upcomingDeadlines = [] } = useQuery({
+    queryKey: ['upcoming-deadlines'],
+    queryFn: async () => {
+      const today = new Date();
+      const inTwoWeeks = new Date();
+      inTwoWeeks.setDate(today.getDate() + 14); // Look ahead 14 days
+      
+      // Use projects table with end_dates approaching
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, end_date')
+        .gt('end_date', today.toISOString())
+        .lte('end_date', inTwoWeeks.toISOString())
+        .order('end_date');
+        
+      if (error) {
+        console.error('Error fetching deadlines:', error);
+        return [];
+      }
+      
+      return data.map(project => ({
+        id: project.id,
+        title: `Project Deadline: ${project.name}`,
+        project: project.name,
+        dueDate: new Date(project.end_date),
+        priority: 'high',
+      }));
+    }
+  });
   
-  // Resource allocation data
-  const resources = [
-    {
-      id: 1,
-      name: "Crane #1",
-      allocation: [
-        { project: "Skyline Tower", day: 1, hours: 8 },
-        { project: "Skyline Tower", day: 2, hours: 8 },
-        { project: "Central Business Hub", day: 3, hours: 8 },
-        { project: "Central Business Hub", day: 4, hours: 8 },
-        { project: "Oceanview Residences", day: 5, hours: 8 },
-      ]
-    },
-    {
-      id: 2,
-      name: "Concrete Mixer",
-      allocation: [
-        { project: "Central Business Hub", day: 1, hours: 8 },
-        { project: "Riverside Complex", day: 3, hours: 6 },
-        { project: "Skyline Tower", day: 4, hours: 8 },
-        { project: "Skyline Tower", day: 5, hours: 4 },
-      ]
-    },
-    {
-      id: 3,
-      name: "Excavator",
-      allocation: [
-        { project: "Mountain View Condos", day: 1, hours: 8 },
-        { project: "Mountain View Condos", day: 2, hours: 8 },
-        { project: "Oceanview Residences", day: 4, hours: 8 },
-        { project: "Oceanview Residences", day: 5, hours: 8 },
-      ]
-    },
-  ];
+  // Fetch resource allocation data from Supabase
+  const { data: resourceAllocations = [] } = useQuery({
+    queryKey: ['resource-allocations'],
+    queryFn: async () => {
+      // Fetch resources with their allocations
+      const { data: resources, error: resourcesError } = await supabase
+        .from('resources')
+        .select(`
+          id, 
+          name,
+          resource_allocations(
+            id, 
+            project_id, 
+            quantity,
+            projects:project_id(name)
+          )
+        `)
+        .order('name');
+        
+      if (resourcesError) {
+        console.error('Error fetching resources:', resourcesError);
+        return [];
+      }
+      
+      // Process the nested data to create the expected format
+      return resources
+        .filter(resource => resource.resource_allocations && resource.resource_allocations.length > 0)
+        .map(resource => {
+          const dayAllocation = [1, 2, 3, 4, 5].map(day => {
+            // For simplicity, we're distributing allocations across the week
+            // In a real app, you would have more specific allocation data
+            const allocation = resource.resource_allocations && resource.resource_allocations.length > 0 ? 
+              resource.resource_allocations[day % resource.resource_allocations.length] : null;
+            
+            return allocation ? {
+              project: allocation.projects?.name || 'Unknown',
+              day,
+              hours: 8 // Default to 8 hours per day
+            } : null;
+          }).filter(Boolean);
+          
+          return {
+            id: resource.id,
+            name: resource.name,
+            allocation: dayAllocation
+          };
+        });
+    }
+  });
 
   return (
     <PageLayout>
@@ -215,27 +242,41 @@ const Schedule = () => {
             {/* Schedule Items for each day */}
             {currentWeek.map((date, dateIndex) => (
               <div key={dateIndex} className="min-h-[300px] border rounded-md p-2">
-                {getScheduleItemsForDate(date).map(item => (
-                  <div 
-                    key={item.id} 
-                    className={`mb-2 p-2 border rounded ${getItemClass(item.type)} cursor-pointer transition-all hover:shadow`}
-                    onClick={() => {
-                      toast({
-                        title: item.title,
-                        description: `${item.project} - ${formatTime(item.start)} to ${formatTime(item.end)}`,
-                      });
-                    }}
-                  >
-                    <div className="font-medium">{item.title}</div>
-                    <div className="text-xs">{item.project}</div>
-                    <div className="text-xs mt-1">{formatTime(item.start)} - {formatTime(item.end)}</div>
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center h-full opacity-75">
+                    <CalendarClock className="h-6 w-6 mb-1 text-gray-400 animate-pulse" />
+                    <span className="text-xs text-gray-400">Loading...</span>
                   </div>
-                ))}
-                {getScheduleItemsForDate(date).length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full opacity-50">
-                    <CalendarClock className="h-6 w-6 mb-1 text-gray-400" />
-                    <span className="text-xs text-gray-400">No events</span>
-                  </div>
+                ) : (
+                  <>
+                    {getScheduleItemsForDate(date).map(item => (
+                      <div 
+                        key={item.id} 
+                        className={`mb-2 p-2 border rounded ${getItemClass(item.type)} cursor-pointer transition-all hover:shadow`}
+                        onClick={() => {
+                          toast({
+                            title: item.title,
+                            description: `${item.project} - ${formatTime(item.start)} to ${formatTime(item.end)}`,
+                          });
+                        }}
+                      >
+                        <div className="font-medium">{item.title}</div>
+                        <div className="text-xs">{item.project}</div>
+                        <div className="text-xs mt-1">{formatTime(item.start)} - {formatTime(item.end)}</div>
+                        {item.resourceIds && item.resourceIds.length > 0 && (
+                          <div className="text-xs mt-1 text-gray-600">
+                            Resources: {item.resourceIds.length}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {getScheduleItemsForDate(date).length === 0 && (
+                      <div className="flex flex-col items-center justify-center h-full opacity-50">
+                        <CalendarClock className="h-6 w-6 mb-1 text-gray-400" />
+                        <span className="text-xs text-gray-400">No events</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             ))}
@@ -293,7 +334,7 @@ const Schedule = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {resources.map((resource) => (
+                  {resourceAllocations.map((resource) => (
                     <tr key={resource.id} className="border-t">
                       <td className="py-3 font-medium">{resource.name}</td>
                       {[1, 2, 3, 4, 5].map((day) => {
@@ -312,6 +353,13 @@ const Schedule = () => {
                       })}
                     </tr>
                   ))}
+                  {resourceAllocations.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-gray-500">
+                        No resource allocations found
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
