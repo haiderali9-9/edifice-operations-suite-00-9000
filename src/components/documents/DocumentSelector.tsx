@@ -49,7 +49,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({ projectId, onDocume
       const { data, error } = await supabase
         .from('documents')
         .select('*')
-        .neq('project_id', projectId);
+        .is('project_id', null);
       
       if (error) throw error;
       

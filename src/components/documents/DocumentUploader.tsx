@@ -85,15 +85,22 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
     try {
       // Generate a unique filename to prevent collisions
       const fileExt = file.name.split('.').pop();
-      const filePath = `${projectId || selectedProjectId}/${uuidv4()}.${fileExt}`;
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const filePath = `${projectId || selectedProjectId}/${fileName}`;
       
       // Upload file to Supabase Storage
       const { error: uploadError, data: uploadData } = await supabase
         .storage
         .from('project_documents')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
       
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw uploadError;
+      }
       
       // Get the public URL
       const { data: publicUrlData } = supabase
@@ -111,7 +118,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
           name: documentName,
           type: documentType,
           url: publicUrlData.publicUrl,
-          uploaded_by: null // Will be replaced with actual user ID when auth is implemented
+          uploaded_by: (await supabase.auth.getUser()).data.user?.id || null
         });
       
       if (dbError) throw dbError;
