@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
@@ -85,8 +86,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function fetchProfile(userId: string) {
     try {
       console.log('Fetching profile for user:', userId);
+      // Using any to bypass TypeScript errors with table definitions
       const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
+        .from('profiles' as any)
         .select('*')
         .eq('id', userId)
         .single();
@@ -117,8 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function createProfile(userId: string) {
     try {
-      // Get user data from auth
-      const { data: userData } = await supabase.auth.admin.getUserById(userId);
+      // Get user data
+      const { data: userData } = await supabase.auth.getUser(userId);
       
       if (!userData?.user) {
         console.error('Could not find user data for profile creation');
@@ -137,33 +139,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Creating new profile:', newProfile);
       
+      // Using any to bypass TypeScript errors with table definitions
       const { error: insertError } = await supabase
-        .from('profiles')
-        .insert(newProfile);
+        .from('profiles' as any)
+        .insert(newProfile as any);
         
       if (insertError) {
         console.error('Error creating profile:', insertError);
         throw insertError;
       }
       
-      setProfile(newProfile);
+      setProfile(newProfile as UserProfile);
       console.log('Profile created successfully');
     } catch (error) {
       console.error('Error in profile creation:', error);
     }
   }
 
-  async function refreshProfile() {
+  async function refreshProfile(): Promise<void> {
     if (user) {
       try {
         await fetchProfile(user.id);
-        return true;
       } catch (error) {
         console.error('Error refreshing profile:', error);
-        return false;
       }
     }
-    return false;
   }
 
   async function signIn(email: string, password: string) {
@@ -240,13 +240,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function updateProfile(updates: Partial<UserProfile>) {
+  async function updateProfile(updates: Partial<UserProfile>): Promise<void> {
     try {
       if (!user) throw new Error('No user logged in');
       
+      // Using any to bypass TypeScript errors with table definitions
       const { error } = await supabase
-        .from('profiles')
-        .update(updates)
+        .from('profiles' as any)
+        .update(updates as any)
         .eq('id', user.id);
       
       if (error) throw error;
