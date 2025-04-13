@@ -2,8 +2,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { Database } from '@/types/supabase';
 
 interface UserProfile {
   id: string;
@@ -12,6 +13,9 @@ interface UserProfile {
   role: string;
   avatar_url: string | null;
   email: string | null;
+  phone?: string | null;
+  position?: string | null;
+  department?: string | null;
 }
 
 interface AuthContextType {
@@ -86,9 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function fetchProfile(userId: string) {
     try {
       console.log('Fetching profile for user:', userId);
-      // Using any to bypass TypeScript errors with table definitions
+      
       const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles' as any)
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
@@ -106,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (existingProfile) {
         console.log('Found existing profile:', existingProfile);
-        setProfile(existingProfile as UserProfile);
+        setProfile(existingProfile as unknown as UserProfile);
       } else {
         console.warn('No profile found for user:', userId);
         await createProfile(userId);
@@ -139,10 +143,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Creating new profile:', newProfile);
       
-      // Using any to bypass TypeScript errors with table definitions
       const { error: insertError } = await supabase
-        .from('profiles' as any)
-        .insert(newProfile as any);
+        .from('profiles')
+        .insert(newProfile);
         
       if (insertError) {
         console.error('Error creating profile:', insertError);
@@ -244,10 +247,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       if (!user) throw new Error('No user logged in');
       
-      // Using any to bypass TypeScript errors with table definitions
       const { error } = await supabase
-        .from('profiles' as any)
-        .update(updates as any)
+        .from('profiles')
+        .update(updates)
         .eq('id', user.id);
       
       if (error) throw error;
