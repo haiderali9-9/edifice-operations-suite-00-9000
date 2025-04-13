@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { Issue } from '@/types';
@@ -9,8 +9,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import IssueDetails from '@/components/issues/IssueDetails';
+import IssueForm from '@/components/issues/IssueForm';
 
 interface ProjectIssuesProps {
   projectId: string;
@@ -18,6 +20,7 @@ interface ProjectIssuesProps {
 
 const ProjectIssues: React.FC<ProjectIssuesProps> = ({ projectId }) => {
   const { toast } = useToast();
+  const [selectedIssue, setSelectedIssue] = React.useState<Issue | null>(null);
 
   // Fetch project issues
   const { data: issues, isLoading, isError, refetch } = useQuery({
@@ -64,6 +67,19 @@ const ProjectIssues: React.FC<ProjectIssuesProps> = ({ projectId }) => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleEditIssue = (issue: Issue) => {
+    setSelectedIssue(issue);
+  };
+
+  const handleIssueUpdated = () => {
+    refetch();
+    setSelectedIssue(null);
+    toast({
+      title: "Issue Updated",
+      description: "The issue has been updated successfully"
+    });
   };
 
   const getStatusBadge = (status: Issue['status']) => {
@@ -126,6 +142,14 @@ const ProjectIssues: React.FC<ProjectIssuesProps> = ({ projectId }) => {
 
   return (
     <div>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-medium">Project Issues</h3>
+        <IssueForm 
+          initialProjectId={projectId}
+          onIssueCreated={() => refetch()}
+        />
+      </div>
+      
       {issues && issues.length > 0 ? (
         <Table>
           <TableHeader>
@@ -153,9 +177,9 @@ const ProjectIssues: React.FC<ProjectIssuesProps> = ({ projectId }) => {
                 <TableCell>{getStatusBadge(issue.status)}</TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="icon">
-                      <FileText className="h-4 w-4" />
-                      <span className="sr-only">View Details</span>
+                    <IssueDetails issue={issue} />
+                    <Button variant="ghost" size="sm" onClick={() => handleEditIssue(issue)}>
+                      Edit
                     </Button>
                     {issue.status !== 'Resolved' && (
                       <Button 
@@ -177,6 +201,16 @@ const ProjectIssues: React.FC<ProjectIssuesProps> = ({ projectId }) => {
         <div className="text-center py-12 border rounded-md bg-gray-50">
           <p className="text-gray-500">No issues reported for this project.</p>
         </div>
+      )}
+
+      {/* Edit Issue Dialog */}
+      {selectedIssue && (
+        <IssueForm
+          isEditing={true}
+          initialData={selectedIssue}
+          initialProjectId={projectId}
+          onIssueCreated={handleIssueUpdated}
+        />
       )}
     </div>
   );

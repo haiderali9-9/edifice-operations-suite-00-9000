@@ -1,4 +1,3 @@
-
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -45,6 +44,9 @@ export interface Issue {
   reported_by: string | User;
   assigned_to?: string | User;
   created_at: string;
+  projects?: {
+    name: string;
+  };
 }
 
 export interface Project {

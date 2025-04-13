@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, MoreHorizontal, AlertTriangle } from "lucide-react";
 import IssueForm from "@/components/issues/IssueForm";
+import IssueDetails from "@/components/issues/IssueDetails";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -34,6 +35,8 @@ const Issues = () => {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
   const [projectFilter, setProjectFilter] = useState<string | null>(initialProjectId || null);
+  const [selectedIssue, setSelectedIssue] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { toast } = useToast();
   
@@ -134,19 +137,15 @@ const Issues = () => {
     return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.id;
   };
 
+  const handleEditIssue = (issue: any) => {
+    setSelectedIssue(issue);
+    setIsEditDialogOpen(true);
+  };
+
   const handleIssueAction = async (action: string, issue: any) => {
     switch (action) {
-      case 'view':
-        toast({
-          title: "Issue Details",
-          description: issue.title,
-        });
-        break;
       case 'edit':
-        toast({
-          title: "Edit Issue",
-          description: `Editing issue: ${issue.title}`,
-        });
+        handleEditIssue(issue);
         break;
       case 'assign':
         toast({
@@ -194,6 +193,15 @@ const Issues = () => {
     });
   };
 
+  const handleIssueUpdated = () => {
+    refetch();
+    setSelectedIssue(null);
+    toast({
+      title: "Issue Updated",
+      description: "The issue has been updated successfully",
+    });
+  };
+
   if (isError) {
     return (
       <PageLayout>
@@ -234,7 +242,7 @@ const Issues = () => {
         />
       </div>
 
-      
+      {/* Issue counts */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <CardContent className="pt-6">
@@ -282,7 +290,7 @@ const Issues = () => {
         </Card>
       </div>
 
-      
+      {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-6">
           <div className="flex items-center gap-4 flex-wrap">
@@ -373,7 +381,7 @@ const Issues = () => {
         </CardContent>
       </Card>
 
-      
+      {/* Issues table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -416,30 +424,30 @@ const Issues = () => {
                       <TableCell>{getPriorityBadge(issue.priority)}</TableCell>
                       <TableCell>{getStatusBadge(issue.status)}</TableCell>
                       <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Open menu</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleIssueAction('view', issue)}>
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleIssueAction('edit', issue)}>
-                              Edit Issue
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleIssueAction('assign', issue)}>
-                              Assign
-                            </DropdownMenuItem>
-                            {issue.status !== "Resolved" && (
-                              <DropdownMenuItem onClick={() => handleIssueAction('resolve', issue)}>
-                                Mark as Resolved
+                        <div className="flex justify-end gap-2">
+                          <IssueDetails issue={issue} />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditIssue(issue)}>
+                                Edit Issue
                               </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              <DropdownMenuItem onClick={() => handleIssueAction('assign', issue)}>
+                                Assign
+                              </DropdownMenuItem>
+                              {issue.status !== "Resolved" && (
+                                <DropdownMenuItem onClick={() => handleIssueAction('resolve', issue)}>
+                                  Mark as Resolved
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -456,6 +464,16 @@ const Issues = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Edit Issue Dialog */}
+      {selectedIssue && (
+        <IssueForm
+          isEditing={true}
+          initialData={selectedIssue}
+          initialProjectId={selectedIssue.project_id}
+          onIssueCreated={handleIssueUpdated}
+        />
+      )}
     </PageLayout>
   );
 };
