@@ -1,4 +1,4 @@
-
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Resource, ResourceAllocation } from "@/types";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, ArrowLeftRight, RotateCcw, Trash2, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -167,23 +166,23 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         .update({ 
           quantity: resourceToRefill.quantity + refillQuantity,
           cost: newCost !== null ? newCost : resourceToRefill.cost,
-          status: 'Available' // Reset status to Available when refilled
+          status: resourceToRefill.quantity + refillQuantity > 0 ? 'Available' : 'Out of Stock'
         })
         .eq('id', resourceToRefill.id);
       
       if (error) throw error;
       
-      toast.success("Resource refilled", {
-        description: `${resourceToRefill.name} has been refilled with ${refillQuantity} additional units.`
+      toast.success("Resource Refilled", {
+        description: `${resourceToRefill.name} refilled with ${refillQuantity} units`
       });
       
-      // Trigger refetch through query invalidation
-      window.location.reload(); // Simple refresh to update data
+      // Close the dialog and reset state
+      setResourceToRefill(null);
+      setRefillQuantity(0);
+      setNewCost(null);
     } catch (error) {
       console.error("Error refilling resource:", error);
       toast.error("Failed to refill resource");
-    } finally {
-      setResourceToRefill(null);
     }
   };
 
