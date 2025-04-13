@@ -77,7 +77,13 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
         .order('name');
       
       if (error) throw error;
-      setProjects(data || []);
+      
+      const typedProjects = data?.map(project => ({
+        ...project,
+        status: project.status as "Planning" | "In Progress" | "On Hold" | "Completed"
+      })) || [];
+      
+      setProjects(typedProjects);
     } catch (error) {
       console.error('Error fetching projects:', error);
       toast({
@@ -99,7 +105,13 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
         .order('name');
       
       if (error) throw error;
-      setResources(data || []);
+      
+      const typedResources = data?.map(resource => ({
+        ...resource,
+        type: resource.type as "Material" | "Equipment" | "Labor"
+      })) || [];
+      
+      setResources(typedResources);
     } catch (error) {
       console.error('Error fetching resources:', error);
       toast({
