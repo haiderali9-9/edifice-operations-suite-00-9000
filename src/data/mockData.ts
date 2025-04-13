@@ -204,6 +204,7 @@ export const resources: Resource[] = [
     unit: 'cubic meters',
     cost: 120,
     status: 'Available',
+    returnable: false,
     resource_allocations: createResourceAllocations('1001', [
       { project_id: '1', quantity: 600 },
       { project_id: '2', quantity: 450 }
@@ -217,6 +218,7 @@ export const resources: Resource[] = [
     unit: 'tons',
     cost: 1800,
     status: 'Low Stock',
+    returnable: false,
     resource_allocations: createResourceAllocations('1002', [
       { project_id: '1', quantity: 500 },
       { project_id: '5', quantity: 200 }
@@ -230,6 +232,7 @@ export const resources: Resource[] = [
     unit: 'units',
     cost: 12000,
     status: 'Available',
+    returnable: true,
     resource_allocations: createResourceAllocations('1003', [
       { project_id: '1', quantity: 1 },
       { project_id: '2', quantity: 1 }
@@ -243,6 +246,7 @@ export const resources: Resource[] = [
     unit: 'workers',
     cost: 250,
     status: 'Available',
+    returnable: false,
     resource_allocations: createResourceAllocations('1004', [
       { project_id: '1', quantity: 45 },
       { project_id: '2', quantity: 35 },
@@ -258,6 +262,7 @@ export const resources: Resource[] = [
     unit: 'meters',
     cost: 3,
     status: 'Available',
+    returnable: false,
     resource_allocations: createResourceAllocations('1005', [
       { project_id: '1', quantity: 8000 },
       { project_id: '2', quantity: 7000 },

@@ -40,7 +40,7 @@ export const adaptResource = (resource: any): Resource => ({
   unit: resource.unit,
   cost: resource.cost,
   status: resource.status,
-  returnable: resource.returnable || resource.type === 'Equipment' || false,
+  returnable: resource.returnable !== undefined ? resource.returnable : resource.type === 'Equipment',
   resource_allocations: resource.allocated?.map((allocation: any) => ({
     id: `${resource.id}-${allocation.projectId || allocation.project_id}`,
     resource_id: resource.id,
