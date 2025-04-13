@@ -1,4 +1,3 @@
-
 import { Project, User, Task, Resource, Expense, Document, Issue } from '../types';
 
 export const users: User[] = [
@@ -126,7 +125,8 @@ export const tasks: Task[] = [
     priority: 'High',
     start_date: '2024-01-20',
     end_date: '2024-03-15',
-    task_assignments: createTaskAssignments('101', [users[4].id, users[2].id])
+    task_assignments: createTaskAssignments('101', [users[4].id, users[2].id]),
+    created_at: '2024-01-15T10:00:00Z'
   },
   {
     id: '102',
@@ -137,7 +137,8 @@ export const tasks: Task[] = [
     priority: 'Critical',
     start_date: '2024-03-20',
     end_date: '2024-07-30',
-    task_assignments: createTaskAssignments('102', [users[4].id])
+    task_assignments: createTaskAssignments('102', [users[4].id]),
+    created_at: '2024-03-15T10:00:00Z'
   },
   {
     id: '103',
@@ -148,7 +149,8 @@ export const tasks: Task[] = [
     priority: 'High',
     start_date: '2024-06-15',
     end_date: '2024-09-30',
-    task_assignments: createTaskAssignments('103', [users[4].id])
+    task_assignments: createTaskAssignments('103', [users[4].id]),
+    created_at: '2024-05-01T10:00:00Z'
   },
   {
     id: '201',
@@ -159,7 +161,8 @@ export const tasks: Task[] = [
     priority: 'High',
     start_date: '2023-09-15',
     end_date: '2023-10-30',
-    task_assignments: createTaskAssignments('201', [users[4].id])
+    task_assignments: createTaskAssignments('201', [users[4].id]),
+    created_at: '2023-09-10T10:00:00Z'
   },
   {
     id: '202',
@@ -170,7 +173,8 @@ export const tasks: Task[] = [
     priority: 'Critical',
     start_date: '2023-11-01',
     end_date: '2024-01-15',
-    task_assignments: createTaskAssignments('202', [users[2].id, users[4].id])
+    task_assignments: createTaskAssignments('202', [users[2].id, users[4].id]),
+    created_at: '2023-10-25T10:00:00Z'
   },
   {
     id: '203',
@@ -181,7 +185,8 @@ export const tasks: Task[] = [
     priority: 'High',
     start_date: '2024-01-20',
     end_date: '2024-06-30',
-    task_assignments: createTaskAssignments('203', [users[4].id])
+    task_assignments: createTaskAssignments('203', [users[4].id]),
+    created_at: '2024-01-15T10:00:00Z'
   },
 ];
 
@@ -208,7 +213,8 @@ export const resources: Resource[] = [
     resource_allocations: createResourceAllocations('1001', [
       { project_id: '1', quantity: 600 },
       { project_id: '2', quantity: 450 }
-    ])
+    ]),
+    created_at: '2024-01-01T10:00:00Z'
   },
   {
     id: '1002',
@@ -222,7 +228,8 @@ export const resources: Resource[] = [
     resource_allocations: createResourceAllocations('1002', [
       { project_id: '1', quantity: 500 },
       { project_id: '5', quantity: 200 }
-    ])
+    ]),
+    created_at: '2024-01-01T10:00:00Z'
   },
   {
     id: '1003',
@@ -236,7 +243,8 @@ export const resources: Resource[] = [
     resource_allocations: createResourceAllocations('1003', [
       { project_id: '1', quantity: 1 },
       { project_id: '2', quantity: 1 }
-    ])
+    ]),
+    created_at: '2024-01-01T10:00:00Z'
   },
   {
     id: '1004',
@@ -252,7 +260,8 @@ export const resources: Resource[] = [
       { project_id: '2', quantity: 35 },
       { project_id: '4', quantity: 20 },
       { project_id: '5', quantity: 15 }
-    ])
+    ]),
+    created_at: '2024-01-01T10:00:00Z'
   },
   {
     id: '1005',
@@ -267,7 +276,8 @@ export const resources: Resource[] = [
       { project_id: '1', quantity: 8000 },
       { project_id: '2', quantity: 7000 },
       { project_id: '4', quantity: 4000 }
-    ])
+    ]),
+    created_at: '2024-01-01T10:00:00Z'
   },
 ];
 
@@ -281,6 +291,7 @@ export const expenses: Expense[] = [
     description: 'Initial concrete and steel purchase',
     approved: true,
     paid_by: 'Accounts Payable',
+    created_at: '2024-02-15T10:00:00Z'
   },
   {
     id: '10002',
@@ -291,6 +302,7 @@ export const expenses: Expense[] = [
     description: 'Tower crane rental - 3 months advance',
     approved: true,
     paid_by: 'Accounts Payable',
+    created_at: '2024-02-20T10:00:00Z'
   },
   {
     id: '10003',
@@ -301,6 +313,7 @@ export const expenses: Expense[] = [
     description: 'January labor costs',
     approved: true,
     paid_by: 'Accounts Payable',
+    created_at: '2024-01-31T10:00:00Z'
   },
   {
     id: '10004',
@@ -311,6 +324,7 @@ export const expenses: Expense[] = [
     description: 'Construction permits and local authority fees',
     approved: true,
     paid_by: 'Project Manager',
+    created_at: '2023-09-05T10:00:00Z'
   },
   {
     id: '10005',
@@ -321,6 +335,7 @@ export const expenses: Expense[] = [
     description: 'Medical-grade fixtures and materials',
     approved: false,
     paid_by: 'Pending Approval',
+    created_at: '2024-01-10T10:00:00Z'
   },
 ];
 
@@ -333,6 +348,7 @@ export const documents: Document[] = [
     upload_date: '2023-12-10',
     url: '#',
     uploaded_by: 'Maria Rodriguez',
+    created_at: '2023-12-10T10:00:00Z'
   },
   {
     id: 'doc2',
@@ -342,6 +358,7 @@ export const documents: Document[] = [
     upload_date: '2023-12-15',
     url: '#',
     uploaded_by: 'John Smith',
+    created_at: '2023-12-15T10:00:00Z'
   },
   {
     id: 'doc3',
@@ -351,6 +368,7 @@ export const documents: Document[] = [
     upload_date: '2023-08-30',
     url: '#',
     uploaded_by: 'David Lee',
+    created_at: '2023-08-30T10:00:00Z'
   },
   {
     id: 'doc4',
@@ -360,6 +378,7 @@ export const documents: Document[] = [
     upload_date: '2023-09-01',
     url: '#',
     uploaded_by: 'John Smith',
+    created_at: '2023-09-01T10:00:00Z'
   },
   {
     id: 'doc5',
@@ -369,6 +388,7 @@ export const documents: Document[] = [
     upload_date: '2023-10-25',
     url: '#',
     uploaded_by: 'Sarah Johnson',
+    created_at: '2023-10-25T10:00:00Z'
   },
 ];
 
@@ -384,6 +404,7 @@ export const issues: Issue[] = [
     status: 'Resolved',
     priority: 'Critical',
     resolution_date: '2024-02-15',
+    created_at: '2024-02-10T10:00:00Z'
   },
   {
     id: 'issue2',
@@ -395,6 +416,7 @@ export const issues: Issue[] = [
     report_date: '2024-03-05',
     status: 'In Progress',
     priority: 'High',
+    created_at: '2024-03-05T10:00:00Z'
   },
   {
     id: 'issue3',
@@ -407,6 +429,7 @@ export const issues: Issue[] = [
     status: 'Resolved',
     priority: 'Medium',
     resolution_date: '2023-12-10',
+    created_at: '2023-11-20T10:00:00Z'
   },
   {
     id: 'issue4',
@@ -417,6 +440,7 @@ export const issues: Issue[] = [
     report_date: '2024-01-15',
     status: 'Open',
     priority: 'High',
+    created_at: '2024-01-15T10:00:00Z'
   },
   {
     id: 'issue5',
@@ -428,6 +452,7 @@ export const issues: Issue[] = [
     report_date: '2024-02-28',
     status: 'In Progress',
     priority: 'Critical',
+    created_at: '2024-02-28T10:00:00Z'
   },
 ];
 

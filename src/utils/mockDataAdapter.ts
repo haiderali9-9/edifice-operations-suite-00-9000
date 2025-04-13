@@ -25,6 +25,7 @@ export const adaptTask = (task: any): Task => ({
   priority: task.priority,
   start_date: task.startDate || task.start_date,
   end_date: task.endDate || task.end_date,
+  created_at: task.created_at || new Date().toISOString(),
   task_assignments: task.assignedTo?.map((user: any) => ({
     id: `${task.id}-${user.id}`,
     task_id: task.id,
@@ -41,6 +42,7 @@ export const adaptResource = (resource: any): Resource => ({
   cost: resource.cost,
   status: resource.status,
   returnable: resource.returnable !== undefined ? resource.returnable : resource.type === 'Equipment',
+  created_at: resource.created_at || new Date().toISOString(),
   resource_allocations: resource.allocated?.map((allocation: any) => ({
     id: `${resource.id}-${allocation.projectId || allocation.project_id}`,
     resource_id: resource.id,
@@ -56,7 +58,8 @@ export const adaptDocument = (document: any): Document => ({
   type: document.type,
   upload_date: document.uploadDate || document.upload_date,
   url: document.url,
-  uploaded_by: document.uploadedBy || document.uploaded_by
+  uploaded_by: document.uploadedBy || document.uploaded_by,
+  created_at: document.created_at || new Date().toISOString()
 });
 
 export const adaptIssue = (issue: any): Issue => ({
@@ -69,7 +72,8 @@ export const adaptIssue = (issue: any): Issue => ({
   report_date: issue.reportDate || issue.report_date,
   status: issue.status,
   priority: issue.priority,
-  resolution_date: issue.resolutionDate || issue.resolution_date
+  resolution_date: issue.resolutionDate || issue.resolution_date,
+  created_at: issue.created_at || new Date().toISOString()
 });
 
 // Use these adapter functions when retrieving mock data
