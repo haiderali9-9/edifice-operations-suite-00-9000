@@ -1,8 +1,7 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
@@ -11,6 +10,7 @@ interface UserProfile {
   last_name: string;
   role: string;
   avatar_url: string | null;
+  email: string | null;
 }
 
 interface AuthContextType {
@@ -22,6 +22,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,7 +44,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (currentSession?.user) {
           try {
-            await fetchProfile(currentSession.user.id);
+            // Use setTimeout to avoid potential auth deadlocks
+            setTimeout(() => {
+              fetchProfile(currentSession.user.id);
+            }, 0);
           } catch (error) {
             console.error('Error fetching profile during auth change:', error);
           } finally {
@@ -80,35 +84,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function fetchProfile(userId: string) {
     try {
-      const { data, error } = await supabase
+      console.log('Fetching profile for user:', userId);
+      const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
         
-      if (error) {
-        console.error('Supabase error fetching profile:', error);
-        throw error;
+      if (profileError) {
+        console.error('Supabase error fetching profile:', profileError);
+        
+        // If profile doesn't exist, create one
+        if (profileError.code === 'PGRST116') { // No rows returned
+          await createProfile(userId);
+          return;
+        }
+        throw profileError;
       }
       
-      if (data) {
-        setProfile(data as UserProfile);
+      if (existingProfile) {
+        console.log('Found existing profile:', existingProfile);
+        setProfile(existingProfile as UserProfile);
       } else {
         console.warn('No profile found for user:', userId);
-        // Create a default profile if none exists
-        const defaultProfile = {
-          id: userId,
-          first_name: '',
-          last_name: '',
-          role: 'user',
-          avatar_url: null
-        };
-        setProfile(defaultProfile);
+        await createProfile(userId);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
       throw error;
     }
+  }
+
+  async function createProfile(userId: string) {
+    try {
+      // Get user data from auth
+      const { data: userData } = await supabase.auth.admin.getUserById(userId);
+      
+      if (!userData?.user) {
+        console.error('Could not find user data for profile creation');
+        return;
+      }
+      
+      // Create a default profile with user data
+      const newProfile = {
+        id: userId,
+        first_name: userData.user.user_metadata?.first_name || '',
+        last_name: userData.user.user_metadata?.last_name || '',
+        email: userData.user.email,
+        role: 'user',
+        avatar_url: null
+      };
+      
+      console.log('Creating new profile:', newProfile);
+      
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert(newProfile);
+        
+      if (insertError) {
+        console.error('Error creating profile:', insertError);
+        throw insertError;
+      }
+      
+      setProfile(newProfile);
+      console.log('Profile created successfully');
+    } catch (error) {
+      console.error('Error in profile creation:', error);
+    }
+  }
+
+  async function refreshProfile() {
+    if (user) {
+      try {
+        await fetchProfile(user.id);
+        return true;
+      } catch (error) {
+        console.error('Error refreshing profile:', error);
+        return false;
+      }
+    }
+    return false;
   }
 
   async function signIn(email: string, password: string) {
@@ -220,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     updateProfile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

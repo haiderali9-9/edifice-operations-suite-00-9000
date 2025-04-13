@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,15 +8,26 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const Settings = () => {
-  const { profile, updateProfile } = useAuth();
+  const { profile, updateProfile, refreshProfile, user } = useAuth();
   const [firstName, setFirstName] = useState(profile?.first_name || '');
   const [lastName, setLastName] = useState(profile?.last_name || '');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(profile?.email || '');
   const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState('profile');
+
+  // Update state when profile changes
+  useEffect(() => {
+    if (profile) {
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      setEmail(profile.email || '');
+    }
+  }, [profile]);
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +41,12 @@ const Settings = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleRefreshProfile = async () => {
+    setIsRefreshing(true);
+    await refreshProfile();
+    setIsRefreshing(false);
   };
 
   const getInitials = () => {
@@ -102,7 +119,7 @@ const Settings = () => {
                     <Input 
                       id="email" 
                       type="email"
-                      value={email}
+                      value={email || ''}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="Your email address"
                       disabled
@@ -120,13 +137,30 @@ const Settings = () => {
                     />
                   </div>
                   
-                  <Button 
-                    type="submit" 
-                    className="bg-construction-600 hover:bg-construction-700 mt-4"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Updating...' : 'Update Profile'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="submit" 
+                      className="bg-construction-600 hover:bg-construction-700 mt-4"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Updating...' : 'Update Profile'}
+                    </Button>
+                    
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      className="mt-4"
+                      onClick={handleRefreshProfile}
+                      disabled={isRefreshing}
+                    >
+                      {isRefreshing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Refreshing...
+                        </>
+                      ) : 'Refresh Profile'}
+                    </Button>
+                  </div>
                 </form>
               </CardContent>
             </Card>
