@@ -27,6 +27,7 @@ const formatCurrency = (amount: number) => {
 };
 
 const Dashboard = () => {
+  console.log("Rendering Dashboard component");
   // Only include active projects
   const activeProjects = projects.filter((p) => p.status === "In Progress");
 

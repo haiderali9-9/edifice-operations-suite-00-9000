@@ -9,9 +9,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import RequireAuth from "./components/auth/RequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
+import Index from "./pages/Index";
 
-// Lazy load pages for better performance
-const Index = React.lazy(() => import("./pages/Index"));
+// Lazy load all other pages for better performance
 const Auth = React.lazy(() => import("./pages/Auth"));
 const Projects = React.lazy(() => import("./pages/Projects"));
 const ProjectDetails = React.lazy(() => import("./pages/ProjectDetails"));
@@ -44,42 +44,40 @@ const PageLoader = () => (
 
 const App: React.FC = () => {
   return (
-    <React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AuthProvider>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <Suspense fallback={<PageLoader />}>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/auth" element={<Auth />} />
-                  
-                  {/* Protected routes */}
-                  <Route element={<RequireAuth />}>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/projects" element={<Projects />} />
-                    <Route path="/projects/:projectId" element={<ProjectDetails />} />
-                    <Route path="/schedule" element={<Schedule />} />
-                    <Route path="/resources" element={<Resources />} />
-                    <Route path="/team" element={<Team />} />
-                    <Route path="/finances" element={<Finances />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/documents" element={<Documents />} />
-                    <Route path="/issues" element={<Issues />} />
-                    <Route path="/settings" element={<Settings />} />
-                  </Route>
-                  
-                  {/* Catch all route */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </TooltipProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                {/* Public routes */}
+                <Route path="/auth" element={<Auth />} />
+                
+                {/* Protected routes */}
+                <Route element={<RequireAuth />}>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/projects/:projectId" element={<ProjectDetails />} />
+                  <Route path="/schedule" element={<Schedule />} />
+                  <Route path="/resources" element={<Resources />} />
+                  <Route path="/team" element={<Team />} />
+                  <Route path="/finances" element={<Finances />} />
+                  <Route path="/reports" element={<Reports />} />
+                  <Route path="/documents" element={<Documents />} />
+                  <Route path="/issues" element={<Issues />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+                
+                {/* Catch all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </TooltipProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 };
 
