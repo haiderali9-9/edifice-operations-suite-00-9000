@@ -54,6 +54,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({ projectId, onDocume
       if (error) throw error;
       
       setDocuments(data as Document[]);
+      console.log("Available documents:", data);
     } catch (error) {
       console.error('Error fetching documents:', error);
       toast({

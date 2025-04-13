@@ -1,4 +1,3 @@
-
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -21,13 +20,15 @@ export interface TaskAssignment {
 
 export interface Document {
   id: string;
-  project_id: string;
   name: string;
-  type: 'Contract' | 'Blueprint' | 'Permit' | 'Invoice' | 'Report' | 'Other';
-  upload_date: string;
+  type: string;
   url: string;
-  uploaded_by: string;
-  created_at: string;
+  project_id: string | null;
+  upload_date: string;
+  uploaded_by: string | null;
+  projects?: {
+    name: string;
+  };
 }
 
 export interface Issue {

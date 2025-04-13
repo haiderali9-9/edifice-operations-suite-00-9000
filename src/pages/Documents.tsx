@@ -56,16 +56,21 @@ const Documents = () => {
   const { data: documents = [], isLoading, refetch } = useQuery({
     queryKey: ['documents'],
     queryFn: async () => {
+      console.log("Fetching documents...");
       const { data, error } = await supabase
         .from('documents')
         .select('*, projects(name)')
         .order('upload_date', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching documents:", error);
+        throw error;
+      }
       
+      console.log("Documents fetched:", data);
       return data.map(doc => ({
         ...doc,
-        project: doc.projects?.name || 'Unknown Project'
+        project: doc.projects?.name || 'Unassigned'
       })) as (Document & { project: string })[];
     }
   });
@@ -157,10 +162,15 @@ const Documents = () => {
         // Delete the document
         if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
           try {
-            // First delete from storage using the URL
+            // Extract the file path from the URL
             const urlParts = doc.url.split('/');
-            const filePath = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
+            // The storage path is typically the last two segments of the URL
+            const storagePathIndex = urlParts.indexOf('project_documents');
+            const filePath = urlParts.slice(storagePathIndex + 1).join('/');
             
+            console.log("Attempting to delete file:", filePath);
+            
+            // Delete the file from storage
             const { error: storageError } = await supabase
               .storage
               .from('project_documents')
@@ -168,9 +178,10 @@ const Documents = () => {
             
             if (storageError) {
               console.error("Error removing file from storage:", storageError);
+              // Continue with database deletion even if storage delete fails
             }
             
-            // Then delete the database record
+            // Delete database record
             const { error: dbError } = await supabase
               .from('documents')
               .delete()
@@ -201,12 +212,6 @@ const Documents = () => {
 
   const handleDocumentUploaded = () => {
     refetch(); // Refresh the document list after upload
-  };
-
-  // Format file size (not available from database, may need to display differently)
-  const getFileSize = (doc: Document) => {
-    // For now, return a placeholder
-    return "~";
   };
 
   return (
@@ -250,7 +255,7 @@ const Documents = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" onClick={() => toast({ title: "Date filter", description: "Date filtering functionality is now working" })}>
+              <Button variant="outline">
                 <Calendar className="h-4 w-4 mr-2" /> Date
               </Button>
             </div>
@@ -274,9 +279,7 @@ const Documents = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Project</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Uploaded By</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead>Upload Date</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -294,8 +297,6 @@ const Documents = () => {
                       </TableCell>
                       <TableCell>{getTypeBadge(doc.type)}</TableCell>
                       <TableCell>{doc.project}</TableCell>
-                      <TableCell>{getFileSize(doc)}</TableCell>
-                      <TableCell className="whitespace-nowrap">System</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3 text-gray-400" />
@@ -343,7 +344,7 @@ const Documents = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                    <TableCell colSpan={5} className="text-center py-10 text-gray-500">
                       {searchTerm || selectedType ? 
                         "No documents found matching your search criteria" : 
                         "No documents have been uploaded yet"}

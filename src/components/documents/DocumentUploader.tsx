@@ -88,6 +88,8 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
       const fileName = `${uuidv4()}.${fileExt}`;
       const filePath = `${projectId || selectedProjectId}/${fileName}`;
       
+      console.log("Uploading file to path:", filePath);
+      
       // Upload file to Supabase Storage
       const { error: uploadError, data: uploadData } = await supabase
         .storage
@@ -109,6 +111,8 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({ projectId, onDocume
         .getPublicUrl(filePath);
       
       if (!publicUrlData.publicUrl) throw new Error("Failed to get public URL");
+      
+      console.log("File uploaded successfully, public URL:", publicUrlData.publicUrl);
       
       // Insert document record in the database
       const { error: dbError } = await supabase
