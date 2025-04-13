@@ -183,7 +183,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
     }
   };
 
-  // New function to mark consumable resource as totally consumed
+  // Function to mark consumable resource as totally consumed
   const handleMarkAsConsumed = async (resourceId: string) => {
     try {
       const { error } = await supabase

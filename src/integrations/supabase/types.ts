@@ -215,6 +215,7 @@ export type Database = {
       }
       resource_allocations: {
         Row: {
+          consumed: boolean | null
           created_at: string | null
           id: string
           project_id: string | null
@@ -222,6 +223,7 @@ export type Database = {
           resource_id: string | null
         }
         Insert: {
+          consumed?: boolean | null
           created_at?: string | null
           id?: string
           project_id?: string | null
@@ -229,6 +231,7 @@ export type Database = {
           resource_id?: string | null
         }
         Update: {
+          consumed?: boolean | null
           created_at?: string | null
           id?: string
           project_id?: string | null
