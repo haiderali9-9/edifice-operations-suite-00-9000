@@ -29,6 +29,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import TeamMemberForm from "@/components/team/TeamMemberForm";
+import TeamMemberProfile from "@/components/team/TeamMemberProfile";
+import TeamMemberEdit from "@/components/team/TeamMemberEdit";
+import TeamMemberProjects from "@/components/team/TeamMemberProjects";
 import { supabase } from "@/lib/supabase";
 
 interface TeamMember {
@@ -48,6 +51,11 @@ const Team = () => {
   const { toast } = useToast();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State for member actions
+  const [viewProfileMemberId, setViewProfileMemberId] = useState<string | null>(null);
+  const [editMemberId, setEditMemberId] = useState<string | null>(null);
+  const [viewProjectsMemberId, setViewProjectsMemberId] = useState<string | null>(null);
 
   // Fetch team members from the database
   useEffect(() => {
@@ -70,28 +78,7 @@ const Team = () => {
         });
         
         // Set default team members if there's an error or no data
-        setTeamMembers([
-          {
-            id: "1",
-            first_name: "John",
-            last_name: "Smith",
-            email: "john.smith@edifice.com",
-            phone: "+1 (555) 123-4567",
-            role: "Project Manager",
-            position: "Senior Project Manager",
-            department: "Management",
-          },
-          {
-            id: "2",
-            first_name: "Sarah",
-            last_name: "Johnson",
-            email: "sarah.johnson@edifice.com",
-            phone: "+1 (555) 234-5678",
-            role: "Civil Engineer",
-            position: "Lead Engineer",
-            department: "Engineering",
-          }
-        ]);
+        setTeamMembers([]);
       } finally {
         setIsLoading(false);
       }
@@ -133,24 +120,15 @@ const Team = () => {
   };
 
   const handleViewProfile = (member: TeamMember) => {
-    toast({
-      title: "Member Profile",
-      description: `Viewing profile for ${member.first_name} ${member.last_name}`,
-    });
+    setViewProfileMemberId(member.id);
   };
 
   const handleEditMember = (member: TeamMember) => {
-    toast({
-      title: "Edit Member",
-      description: `Editing profile for ${member.first_name} ${member.last_name}`,
-    });
+    setEditMemberId(member.id);
   };
 
   const handleViewProjects = (member: TeamMember) => {
-    toast({
-      title: "Member Projects",
-      description: `Viewing projects for ${member.first_name} ${member.last_name}`,
-    });
+    setViewProjectsMemberId(member.id);
   };
 
   return (
@@ -212,18 +190,18 @@ const Team = () => {
                           <Avatar className="h-8 w-8">
                             <AvatarImage src={member.avatar_url || undefined} alt={`${member.first_name} ${member.last_name}`} />
                             <AvatarFallback className="bg-construction-100 text-construction-700">
-                              {getInitials(member.first_name, member.last_name)}
+                              {getInitials(member.first_name || '', member.last_name || '')}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            {`${member.first_name} ${member.last_name}`}
+                            {`${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unnamed Member'}
                             <div className="text-xs text-gray-500">
-                              {member.position}
+                              {member.position || 'No position'}
                             </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{member.role}</TableCell>
+                      <TableCell>{member.role || 'N/A'}</TableCell>
                       <TableCell>{member.department || 'N/A'}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -272,6 +250,28 @@ const Team = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* View Profile Modal */}
+      <TeamMemberProfile
+        memberId={viewProfileMemberId}
+        isOpen={viewProfileMemberId !== null}
+        onClose={() => setViewProfileMemberId(null)}
+      />
+
+      {/* Edit Member Modal */}
+      <TeamMemberEdit
+        memberId={editMemberId}
+        isOpen={editMemberId !== null}
+        onClose={() => setEditMemberId(null)}
+        onMemberUpdated={handleMemberAdded}
+      />
+
+      {/* View Projects Modal */}
+      <TeamMemberProjects
+        memberId={viewProjectsMemberId}
+        isOpen={viewProjectsMemberId !== null}
+        onClose={() => setViewProjectsMemberId(null)}
+      />
     </PageLayout>
   );
 };
