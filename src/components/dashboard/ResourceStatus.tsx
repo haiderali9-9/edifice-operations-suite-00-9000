@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeftRight, RotateCcw, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeftRight, RotateCcw, Trash2, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -26,6 +26,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface ResourceStatusProps {
   resources?: Resource[];
@@ -35,6 +38,9 @@ interface ResourceStatusProps {
 const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
   const [resourceToReturn, setResourceToReturn] = useState<Resource | null>(null);
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
+  const [resourceToRefill, setResourceToRefill] = useState<Resource | null>(null);
+  const [refillQuantity, setRefillQuantity] = useState<number>(0);
+  const [newCost, setNewCost] = useState<number | null>(null);
   
   // Sort resources by status (critical first)
   const sortedResources = resources 
@@ -143,6 +149,44 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
     }
   };
 
+  // New handler for opening the refill dialog
+  const handleRefillResource = (resource: Resource) => {
+    setResourceToRefill(resource);
+    setRefillQuantity(0);
+    setNewCost(resource.cost);
+  };
+
+  // New handler for confirming the refill operation
+  const confirmRefillResource = async () => {
+    if (!resourceToRefill || refillQuantity <= 0) return;
+    
+    try {
+      // Update the resource quantity and cost
+      const { error } = await supabase
+        .from('resources')
+        .update({ 
+          quantity: resourceToRefill.quantity + refillQuantity,
+          cost: newCost !== null ? newCost : resourceToRefill.cost,
+          status: 'Available' // Reset status to Available when refilled
+        })
+        .eq('id', resourceToRefill.id);
+      
+      if (error) throw error;
+      
+      toast.success("Resource refilled", {
+        description: `${resourceToRefill.name} has been refilled with ${refillQuantity} additional units.`
+      });
+      
+      // Trigger refetch through query invalidation
+      window.location.reload(); // Simple refresh to update data
+    } catch (error) {
+      console.error("Error refilling resource:", error);
+      toast.error("Failed to refill resource");
+    } finally {
+      setResourceToRefill(null);
+    }
+  };
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -162,7 +206,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Status</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
+                <TableHead className="w-[150px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -178,6 +222,16 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                     <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
                     <TableCell>
                       <div className="flex space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-blue-600"
+                          onClick={() => handleRefillResource(resource)}
+                        >
+                          <Plus className="h-4 w-4" />
+                          <span className="sr-only">Refill</span>
+                        </Button>
+                        
                         {resource.returnable && resource.resource_allocations && resource.resource_allocations.length > 0 && (
                           <Button
                             variant="ghost"
@@ -254,6 +308,66 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Refill Resource Dialog */}
+      <Dialog open={!!resourceToRefill} onOpenChange={(open) => !open && setResourceToRefill(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Refill Resource: {resourceToRefill?.name}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="quantity" className="text-right">
+                Add Quantity
+              </Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                className="col-span-3"
+                value={refillQuantity}
+                onChange={(e) => setRefillQuantity(parseInt(e.target.value) || 0)}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="cost" className="text-right">
+                New Cost per {resourceToRefill?.unit}
+              </Label>
+              <Input
+                id="cost"
+                type="number"
+                step="0.01"
+                min="0"
+                className="col-span-3"
+                value={newCost !== null ? newCost : ''}
+                onChange={(e) => setNewCost(e.target.value ? parseFloat(e.target.value) : null)}
+              />
+            </div>
+            
+            <div className="col-span-4">
+              <p className="text-sm text-gray-500 mt-2">
+                Current quantity: {resourceToRefill?.quantity} {resourceToRefill?.unit}<br />
+                Current cost: ${resourceToRefill?.cost} per {resourceToRefill?.unit}
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResourceToRefill(null)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmRefillResource}
+              disabled={refillQuantity <= 0}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refill Resource
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
