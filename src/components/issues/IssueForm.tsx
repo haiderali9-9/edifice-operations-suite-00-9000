@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -124,6 +125,89 @@ const IssueForm: React.FC<IssueFormProps> = ({
   const formatUserName = (user: any) => {
     if (!user) return '';
     return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!title || !projectId || !priority) {
+      toast({
+        title: "Missing information",
+        description: "Please fill all required fields",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const issueData = {
+        title,
+        description,
+        project_id: projectId,
+        priority,
+        reported_by: reportedBy === "unassigned" ? null : reportedBy,
+        assigned_to: assignedTo === "unassigned" ? null : assignedTo,
+        status
+      };
+
+      if (isEditing && initialData) {
+        // Update existing issue
+        const { error } = await supabase
+          .from('issues')
+          .update(issueData)
+          .eq('id', initialData.id);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Issue updated",
+          description: "The issue has been updated successfully.",
+        });
+      } else {
+        // Insert new issue
+        const { error } = await supabase
+          .from('issues')
+          .insert({
+            ...issueData,
+            status: 'Open',
+            report_date: new Date().toISOString(),
+          });
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Issue reported",
+          description: "Your issue has been reported successfully.",
+        });
+      }
+      
+      setOpen(false);
+      
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setProjectId(initialProjectId || '');
+      setPriority('Medium');
+      setReportedBy('');
+      setAssignedTo('');
+      setStatus('Open');
+      
+      // Notify parent component
+      if (onIssueCreated) {
+        onIssueCreated();
+      }
+    } catch (error: any) {
+      console.error("Error submitting issue:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit issue. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const dialogTitle = isEditing ? "Edit Issue" : "Report New Issue";
@@ -292,86 +376,3 @@ const IssueForm: React.FC<IssueFormProps> = ({
 };
 
 export default IssueForm;
-
-function handleSubmit(e: React.FormEvent) {
-  e.preventDefault();
-  
-  if (!title || !projectId || !priority) {
-    toast({
-      title: "Missing information",
-      description: "Please fill all required fields",
-      variant: "destructive"
-    });
-    return;
-  }
-  
-  setIsSubmitting(true);
-  
-  try {
-    const issueData = {
-      title,
-      description,
-      project_id: projectId,
-      priority,
-      reported_by: reportedBy === "unassigned" ? null : reportedBy,
-      assigned_to: assignedTo === "unassigned" ? null : assignedTo,
-      status
-    };
-
-    if (isEditing && initialData) {
-      // Update existing issue
-      const { error } = await supabase
-        .from('issues')
-        .update(issueData)
-        .eq('id', initialData.id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Issue updated",
-        description: "The issue has been updated successfully.",
-      });
-    } else {
-      // Insert new issue
-      const { error } = await supabase
-        .from('issues')
-        .insert({
-          ...issueData,
-          status: 'Open',
-          report_date: new Date().toISOString(),
-        });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Issue reported",
-        description: "Your issue has been reported successfully.",
-      });
-    }
-    
-    setOpen(false);
-    
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setProjectId(initialProjectId || '');
-    setPriority('Medium');
-    setReportedBy('');
-    setAssignedTo('');
-    setStatus('Open');
-    
-    // Notify parent component
-    if (onIssueCreated) {
-      onIssueCreated();
-    }
-  } catch (error: any) {
-    console.error("Error submitting issue:", error);
-    toast({
-      title: "Error",
-      description: error.message || "Failed to submit issue. Please try again.",
-      variant: "destructive"
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-}
