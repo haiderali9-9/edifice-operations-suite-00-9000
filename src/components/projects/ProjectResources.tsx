@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -18,7 +19,8 @@ import {
   Box,
   HardDrive,
   ArrowLeftRight,
-  Trash2
+  Trash2,
+  CheckCircle
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +42,7 @@ interface ProjectResource {
   id: string;
   quantity: number;
   resource: Resource;
+  consumed?: boolean;
 }
 
 const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
@@ -56,7 +59,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
       // First, get all resource allocations for this project
       const { data: allocations, error: allocationsError } = await supabase
         .from('resource_allocations')
-        .select('id, quantity, resource_id')
+        .select('id, quantity, resource_id, consumed')
         .eq('project_id', projectId);
       
       if (allocationsError) throw allocationsError;
@@ -78,6 +81,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
           return {
             id: allocation.id,
             quantity: allocation.quantity,
+            consumed: allocation.consumed || false,
             resource: {
               ...matchingResource,
               returnable: matchingResource.returnable || false // Ensure returnable property exists
@@ -179,6 +183,32 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
     }
   };
 
+  // New function to mark consumable resource as totally consumed
+  const handleMarkAsConsumed = async (resourceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('resource_allocations')
+        .update({ consumed: true })
+        .eq('id', resourceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Resource consumed",
+        description: "Resource has been marked as totally consumed."
+      });
+
+      fetchProjectResources();
+    } catch (error) {
+      console.error("Error marking resource as consumed:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update resource status.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
@@ -209,8 +239,20 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
           <TableBody>
             {projectResources.length > 0 ? (
               projectResources.map((projectResource) => (
-                <TableRow key={projectResource.id}>
-                  <TableCell className="font-medium">{projectResource.resource.name}</TableCell>
+                <TableRow 
+                  key={projectResource.id}
+                  className={projectResource.consumed ? "bg-gray-50" : ""}
+                >
+                  <TableCell className="font-medium">
+                    <div className="flex items-center">
+                      {projectResource.consumed && 
+                        <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                      }
+                      <span className={projectResource.consumed ? "text-gray-500 line-through" : ""}>
+                        {projectResource.resource.name}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center">
                       {getResourceTypeIcon(projectResource.resource.type, projectResource.resource.returnable)}
@@ -232,6 +274,12 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        {!projectResource.resource.returnable && !projectResource.consumed && (
+                          <DropdownMenuItem onClick={() => handleMarkAsConsumed(projectResource.id)}>
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                            Mark as Consumed
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => handleRemoveResource(projectResource.id)}>
                           <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                           Remove Resource
