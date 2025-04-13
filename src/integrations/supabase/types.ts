@@ -147,6 +147,7 @@ export type Database = {
           id: string
           name: string
           quantity: number
+          returnable: boolean | null
           status: string | null
           type: string | null
           unit: string
@@ -157,6 +158,7 @@ export type Database = {
           id?: string
           name: string
           quantity: number
+          returnable?: boolean | null
           status?: string | null
           type?: string | null
           unit: string
@@ -167,6 +169,7 @@ export type Database = {
           id?: string
           name?: string
           quantity?: number
+          returnable?: boolean | null
           status?: string | null
           type?: string | null
           unit?: string

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -311,7 +310,7 @@ const Resources = () => {
                             {resource.type}
                           </div>
                         </TableCell>
-                        <TableCell>{getResourceCategoryBadge(resource.returnable || false)}</TableCell>
+                        <TableCell>{getResourceCategoryBadge(resource.returnable)}</TableCell>
                         <TableCell>{resource.quantity}</TableCell>
                         <TableCell>{resource.unit}</TableCell>
                         <TableCell>{formatCurrency(resource.cost)} / {resource.unit}</TableCell>

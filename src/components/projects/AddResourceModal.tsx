@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -38,7 +37,6 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch available resources
   useEffect(() => {
     const fetchResources = async () => {
       setIsLoading(true);
@@ -49,7 +47,13 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
           .order('name');
         
         if (error) throw error;
-        setResources(data as Resource[] || []);
+        
+        const formattedResources = (data || []).map(resource => ({
+          ...resource,
+          returnable: resource.returnable || false
+        })) as Resource[];
+        
+        setResources(formattedResources);
       } catch (error) {
         console.error("Error fetching resources:", error);
         toast({
@@ -80,7 +84,6 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
     setIsSubmitting(true);
     
     try {
-      // Check if resource is already assigned to this project
       const { data: existingAllocation, error: checkError } = await supabase
         .from('resource_allocations')
         .select('*')
@@ -90,7 +93,6 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
       
       if (checkError) throw checkError;
 
-      // If resource already exists, update quantity instead of inserting
       if (existingAllocation) {
         const { error } = await supabase
           .from('resource_allocations')
@@ -99,7 +101,6 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
           
         if (error) throw error;
       } else {
-        // Add resource to resource_allocations table
         const { error } = await supabase
           .from('resource_allocations')
           .insert({
@@ -116,11 +117,9 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
         description: "The resource has been added to the project.",
       });
       
-      // Reset form
       setSelectedResource('');
       setQuantity(1);
       
-      // Close modal and notify parent component
       handleClose();
     } catch (error: any) {
       console.error("Error adding resource:", error);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -7,8 +6,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { 
   PlusCircle, 
   Loader2, 
@@ -21,16 +20,16 @@ import {
   ArrowLeftRight,
   Trash2
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Resource } from '@/types';
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Resource } from "@/types";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from "@/components/ui/dropdown-menu";
 import AddResourceModal from './AddResourceModal';
 
 interface ProjectResourcesProps {
@@ -79,7 +78,10 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
           return {
             id: allocation.id,
             quantity: allocation.quantity,
-            resource: matchingResource as Resource
+            resource: {
+              ...matchingResource,
+              returnable: matchingResource.returnable || false // Ensure returnable property exists
+            } as Resource
           };
         });
         
@@ -216,7 +218,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {getResourceTypeTag(projectResource.resource.returnable || false)}
+                    {getResourceTypeTag(projectResource.resource.returnable)}
                   </TableCell>
                   <TableCell>{projectResource.quantity} {projectResource.resource.unit}</TableCell>
                   <TableCell>{formatCurrency(projectResource.resource.cost)}</TableCell>

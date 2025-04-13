@@ -77,7 +77,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                   <TableRow key={resource.id}>
                     <TableCell className="font-medium">{resource.name}</TableCell>
                     <TableCell>{resource.type}</TableCell>
-                    <TableCell>{getResourceCategoryBadge(resource.returnable || false)}</TableCell>
+                    <TableCell>{getResourceCategoryBadge(resource.returnable)}</TableCell>
                     <TableCell className="text-right">
                       {resource.quantity - (resource.resource_allocations?.reduce((sum, a) => sum + a.quantity, 0) || 0)} / {resource.quantity} {resource.unit}
                     </TableCell>
