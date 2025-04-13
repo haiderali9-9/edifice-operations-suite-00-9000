@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Resource, ResourceAllocation } from "@/types";
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeftRight, RotateCcw, Trash2, RefreshCw, Plus } from "lucide-react";
+import { Loader2, ArrowLeftRight, RotateCcw, Trash2, RefreshCw, Plus, Reset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -40,6 +41,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
   const [resourceToRefill, setResourceToRefill] = useState<Resource | null>(null);
   const [refillQuantity, setRefillQuantity] = useState<number>(0);
   const [newCost, setNewCost] = useState<number | null>(null);
+  const [resourceToReset, setResourceToReset] = useState<Resource | null>(null);
   
   // Sort resources by status (critical first)
   const sortedResources = resources 
@@ -180,9 +182,62 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
       setResourceToRefill(null);
       setRefillQuantity(0);
       setNewCost(null);
+      
+      // Refresh page to see updates
+      window.location.reload();
     } catch (error) {
       console.error("Error refilling resource:", error);
       toast.error("Failed to refill resource");
+    }
+  };
+
+  // New handler for resetting consumable resources
+  const handleResetResource = (resource: Resource) => {
+    // Only allow resetting consumable resources (not returnable)
+    if (resource.returnable) {
+      toast.error("Only consumable resources can be reset");
+      return;
+    }
+    
+    setResourceToReset(resource);
+  };
+  
+  // New handler for confirming the reset operation
+  const confirmResetResource = async () => {
+    if (!resourceToReset) return;
+    
+    try {
+      // First, delete all allocations for this resource
+      if (resourceToReset.resource_allocations && resourceToReset.resource_allocations.length > 0) {
+        const { error: allocationsError } = await supabase
+          .from('resource_allocations')
+          .delete()
+          .eq('resource_id', resourceToReset.id);
+          
+        if (allocationsError) throw allocationsError;
+      }
+      
+      // Then update resource status to Available
+      const { error } = await supabase
+        .from('resources')
+        .update({ 
+          status: resourceToReset.quantity > 0 ? 'Available' : 'Out of Stock'
+        })
+        .eq('id', resourceToReset.id);
+      
+      if (error) throw error;
+      
+      toast.success("Resource Reset", {
+        description: `${resourceToReset.name} has been reset. All allocations cleared.`
+      });
+      
+      // Refresh to update data
+      window.location.reload();
+    } catch (error) {
+      console.error("Error resetting resource:", error);
+      toast.error("Failed to reset resource");
+    } finally {
+      setResourceToReset(null);
     }
   };
 
@@ -205,7 +260,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Status</TableHead>
-                <TableHead className="w-[150px]"></TableHead>
+                <TableHead className="w-[180px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -242,6 +297,21 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                             <span className="sr-only">Return</span>
                           </Button>
                         )}
+                        
+                        {/* Reset button for consumable resources */}
+                        {!resource.returnable && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-purple-600"
+                            onClick={() => handleResetResource(resource)}
+                            title="Reset consumable resource"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            <span className="sr-only">Reset</span>
+                          </Button>
+                        )}
+                        
                         <Button
                           variant="ghost"
                           size="icon"
@@ -367,6 +437,26 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Reset Resource Dialog */}
+      <AlertDialog open={!!resourceToReset} onOpenChange={() => setResourceToReset(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Consumable Resource</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reset {resourceToReset?.name}? This will clear all allocations 
+              and make the full quantity available again. Use this when tracking has become 
+              inconsistent.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetResource}>
+              Reset Resource
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

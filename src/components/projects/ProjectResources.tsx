@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -20,7 +19,8 @@ import {
   HardDrive,
   ArrowLeftRight,
   Trash2,
-  CheckCircle
+  CheckCircle,
+  RefreshCw
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,13 +62,12 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
   const [showAddResourceModal, setShowAddResourceModal] = useState(false);
   const [deleteResourceId, setDeleteResourceId] = useState<string | null>(null);
   const [consumeResourceId, setConsumeResourceId] = useState<string | null>(null);
+  const [resetResourceId, setResetResourceId] = useState<string | null>(null);
 
-  // Fetch project resources
   const fetchProjectResources = async () => {
     try {
       setIsLoading(true);
       
-      // First, get all resource allocations for this project
       const { data: allocations, error: allocationsError } = await supabase
         .from('resource_allocations')
         .select('id, quantity, resource_id, consumed')
@@ -77,7 +76,6 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
       if (allocationsError) throw allocationsError;
       
       if (allocations && allocations.length > 0) {
-        // Get all resources associated with these allocations
         const resourceIds = allocations.map(alloc => alloc.resource_id);
         
         const { data: resources, error: resourcesError } = await supabase
@@ -87,7 +85,6 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
         
         if (resourcesError) throw resourcesError;
         
-        // Map the resources back to their allocations
         const formattedResources: ProjectResource[] = allocations.map(allocation => {
           const matchingResource = resources.find(resource => resource.id === allocation.resource_id);
           return {
@@ -96,7 +93,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
             consumed: allocation.consumed || false,
             resource: {
               ...matchingResource,
-              returnable: matchingResource.returnable || false // Ensure returnable property exists
+              returnable: matchingResource.returnable || false
             } as Resource
           };
         });
@@ -203,7 +200,6 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
     }
   };
 
-  // Function to mark consumable resource as totally consumed
   const handleMarkAsConsumed = async (resourceId: string) => {
     setConsumeResourceId(resourceId);
   };
@@ -237,6 +233,39 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
     }
   };
 
+  const handleResetResource = (resourceId: string) => {
+    setResetResourceId(resourceId);
+  };
+
+  const confirmResetResource = async () => {
+    if (!resetResourceId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('resource_allocations')
+        .delete()
+        .eq('id', resetResourceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Resource reset",
+        description: "Resource allocation has been reset and resource made fully available."
+      });
+
+      fetchProjectResources();
+    } catch (error) {
+      console.error("Error resetting resource:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reset the resource.",
+        variant: "destructive"
+      });
+    } finally {
+      setResetResourceId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
@@ -261,7 +290,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
               <TableHead>Quantity</TableHead>
               <TableHead>Unit Cost</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -294,23 +323,38 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                   <TableCell>{formatCurrency(projectResource.resource.cost)}</TableCell>
                   <TableCell>{getStatusBadge(projectResource.resource.status)}</TableCell>
                   <TableCell>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-1">
                       {!projectResource.consumed && !projectResource.resource.returnable ? (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-green-600"
-                          onClick={() => handleMarkAsConsumed(projectResource.id)}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="sr-only">Mark as Consumed</span>
-                        </Button>
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-green-600"
+                            onClick={() => handleMarkAsConsumed(projectResource.id)}
+                            title="Mark as Consumed"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            <span className="sr-only">Mark as Consumed</span>
+                          </Button>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-purple-600"
+                            onClick={() => handleResetResource(projectResource.id)}
+                            title="Reset Resource"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            <span className="sr-only">Reset</span>
+                          </Button>
+                        </>
                       ) : null}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-red-600"
                         onClick={() => handleRemoveResource(projectResource.id)}
+                        title="Delete"
                       >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete</span>
@@ -338,7 +382,6 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResourceId} onOpenChange={() => setDeleteResourceId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -360,7 +403,6 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Mark as Consumed Confirmation Dialog */}
       <AlertDialog open={!!consumeResourceId} onOpenChange={() => setConsumeResourceId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -374,6 +416,24 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmMarkAsConsumed}>
               Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!resetResourceId} onOpenChange={() => setResetResourceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Resource Allocation</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to reset this resource allocation?
+              This will make the resource fully available again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmResetResource}>
+              Reset Allocation
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
