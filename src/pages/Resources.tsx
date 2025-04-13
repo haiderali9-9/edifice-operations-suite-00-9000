@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,14 +26,16 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ResourceStatus from "@/components/dashboard/ResourceStatus";
+import AddResourceModal from "@/components/resources/AddResourceModal";
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [isAddResourceModalOpen, setIsAddResourceModalOpen] = useState(false);
   
   // Fetch resources from Supabase
-  const { data: resources, isLoading: resourcesLoading, error } = useQuery({
+  const { data: resources, isLoading: resourcesLoading, error, refetch } = useQuery({
     queryKey: ['resources'],
     queryFn: async () => {
       // First fetch all resources
@@ -152,9 +155,12 @@ const Resources = () => {
   );
 
   const handleAddResource = () => {
-    toast.info("Feature Coming Soon", {
-      description: "The add resource functionality will be implemented in a future update."
-    });
+    setIsAddResourceModalOpen(true);
+  };
+
+  const handleResourceAdded = () => {
+    refetch();
+    toast.success("Resource added successfully");
   };
   
   return (
@@ -350,6 +356,12 @@ const Resources = () => {
           <ResourceStatus resources={filteredResources} isLoading={resourcesLoading} />
         </TabsContent>
       </Tabs>
+
+      <AddResourceModal 
+        open={isAddResourceModalOpen}
+        onOpenChange={setIsAddResourceModalOpen}
+        onResourceAdded={handleResourceAdded}
+      />
     </PageLayout>
   );
 };
