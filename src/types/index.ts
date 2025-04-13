@@ -1,3 +1,4 @@
+
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -29,6 +30,7 @@ export interface Document {
   projects?: {
     name: string;
   };
+  created_at?: string; // Added missing field that was causing TypeScript errors
 }
 
 export interface Issue {

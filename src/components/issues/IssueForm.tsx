@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,28 +21,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { supabase } from '@/lib/supabase';
+import { useQuery } from '@tanstack/react-query';
 
 interface IssueFormProps {
   onIssueCreated?: () => void;
+  initialProjectId?: string;
 }
 
-const IssueForm: React.FC<IssueFormProps> = ({ onIssueCreated }) => {
+const IssueForm: React.FC<IssueFormProps> = ({ onIssueCreated, initialProjectId }) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [project, setProject] = useState('');
-  const [priority, setPriority] = useState('');
+  const [projectId, setProjectId] = useState(initialProjectId || '');
+  const [priority, setPriority] = useState('Medium');
 
-  const projects = [
-    'Skyline Tower', 
-    'Oceanview Residences', 
-    'Central Business Hub', 
-    'Riverside Complex', 
-    'Mountain View Condos'
-  ];
+  // Fetch projects from database
+  const { data: projects } = useQuery({
+    queryKey: ['projects-for-issues'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const priorities = [
     'Low',
@@ -51,10 +60,17 @@ const IssueForm: React.FC<IssueFormProps> = ({ onIssueCreated }) => {
     'Critical'
   ];
 
+  // Set project ID from prop when available
+  useEffect(() => {
+    if (initialProjectId) {
+      setProjectId(initialProjectId);
+    }
+  }, [initialProjectId]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title || !description || !project || !priority) {
+    if (!title || !description || !projectId || !priority) {
       toast({
         title: "Missing information",
         description: "Please fill all required fields",
@@ -65,9 +81,24 @@ const IssueForm: React.FC<IssueFormProps> = ({ onIssueCreated }) => {
     
     setIsSubmitting(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      // Insert issue into database
+      const { data, error } = await supabase
+        .from('issues')
+        .insert({
+          title,
+          description,
+          project_id: projectId,
+          priority,
+          status: 'Open',
+          report_date: new Date().toISOString(),
+          // We'll use the auth user ID for reported_by in a real app
+          // For now, we'll leave it null or could set a default user
+        })
+        .select();
+      
+      if (error) throw error;
+      
       setOpen(false);
       
       toast({
@@ -78,14 +109,23 @@ const IssueForm: React.FC<IssueFormProps> = ({ onIssueCreated }) => {
       // Reset form
       setTitle('');
       setDescription('');
-      setProject('');
-      setPriority('');
+      setProjectId(initialProjectId || '');
+      setPriority('Medium');
       
       // Notify parent component
       if (onIssueCreated) {
         onIssueCreated();
       }
-    }, 1000);
+    } catch (error: any) {
+      console.error("Error submitting issue:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit issue. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,14 +155,14 @@ const IssueForm: React.FC<IssueFormProps> = ({ onIssueCreated }) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="project">Project</Label>
-                <Select value={project} onValueChange={setProject} required>
+                <Select value={projectId} onValueChange={setProjectId} required>
                   <SelectTrigger id="project">
                     <SelectValue placeholder="Select project" />
                   </SelectTrigger>
                   <SelectContent>
-                    {projects.map((projectName) => (
-                      <SelectItem key={projectName} value={projectName}>
-                        {projectName}
+                    {projects?.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

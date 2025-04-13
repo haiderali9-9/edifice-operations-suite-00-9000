@@ -1,5 +1,6 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -19,7 +20,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Issue, User } from "@/types";
 import { Search, Filter, MoreHorizontal, AlertTriangle } from "lucide-react";
 import IssueForm from "@/components/issues/IssueForm";
 import { useToast } from "@/hooks/use-toast";
@@ -27,54 +27,50 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 const Issues = () => {
+  const location = useLocation();
+  const initialProjectId = location.state?.projectId;
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [projectFilter, setProjectFilter] = useState<string | null>(initialProjectId || null);
 
   const { toast } = useToast();
   
+  // Effect to handle initial project filter from navigation
+  useEffect(() => {
+    if (location.state?.projectId) {
+      setProjectFilter(location.state.projectId);
+    }
+  }, [location.state]);
+  
   // Fetch issues from Supabase
   const { data: issues, isLoading, isError, refetch } = useQuery({
-    queryKey: ['issues'],
+    queryKey: ['issues', projectFilter],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('issues')
         .select(`
           *,
           reported_by:profiles!reported_by(id, first_name, last_name),
-          assigned_to:profiles!assigned_to(id, first_name, last_name)
+          assigned_to:profiles!assigned_to(id, first_name, last_name),
+          projects:project_id(id, name)
         `);
+      
+      // Apply project filter if set
+      if (projectFilter) {
+        query = query.eq('project_id', projectFilter);
+      }
+      
+      const { data, error } = await query.order('report_date', { ascending: false });
       
       if (error) throw error;
       
-      // Transform the data to match our Issue type
-      return (data || []).map((issue: any) => ({
-        id: issue.id,
-        project_id: issue.project_id,
-        title: issue.title,
-        description: issue.description,
-        reported_by: issue.reported_by,
-        assigned_to: issue.assigned_to,
-        report_date: issue.report_date,
-        status: issue.status as 'Open' | 'In Progress' | 'Resolved',
-        priority: issue.priority as 'Low' | 'Medium' | 'High' | 'Critical',
-        resolution_date: issue.resolution_date,
-      })) as Issue[];
+      return data || [];
     },
   });
 
-  // Filter issues based on search term, status filter, and priority filter
-  const filteredIssues = issues ? issues.filter((issue) => {
-    const matchesSearch =
-      issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      issue.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter ? issue.status === statusFilter : true;
-    const matchesPriority = priorityFilter ? issue.priority === priorityFilter : true;
-
-    return matchesSearch && matchesStatus && matchesPriority;
-  }) : [];
-
-  // Fetch projects to get names
+  // Fetch projects for filtering
   const { data: projects } = useQuery({
     queryKey: ['projects-simple'],
     queryFn: async () => {
@@ -87,13 +83,25 @@ const Issues = () => {
     },
   });
 
+  // Filter issues based on search term, status filter, and priority filter
+  const filteredIssues = issues ? issues.filter((issue) => {
+    const matchesSearch =
+      issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (issue.description || "").toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter ? issue.status === statusFilter : true;
+    const matchesPriority = priorityFilter ? issue.priority === priorityFilter : true;
+
+    return matchesSearch && matchesStatus && matchesPriority;
+  }) : [];
+
   // Find project name by ID
   const getProjectName = (projectId: string) => {
     const project = projects?.find((p) => p.id === projectId);
     return project ? project.name : "Unknown Project";
   };
 
-  const getPriorityBadge = (priority: Issue["priority"]) => {
+  const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "Critical":
         return <Badge variant="outline" className="bg-red-100 text-red-800">Critical</Badge>;
@@ -108,7 +116,7 @@ const Issues = () => {
     }
   };
 
-  const getStatusBadge = (status: Issue["status"]) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "Open":
         return <Badge variant="outline" className="bg-gray-100 text-gray-800">Open</Badge>;
@@ -121,14 +129,12 @@ const Issues = () => {
     }
   };
 
-  const formatUserName = (user: User | string) => {
-    if (typeof user === 'string') {
-      return user;
-    }
-    return user.name;
+  const formatUserName = (user: any) => {
+    if (!user) return "Unassigned";
+    return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.id;
   };
 
-  const handleIssueAction = async (action: string, issue: Issue) => {
+  const handleIssueAction = async (action: string, issue: any) => {
     switch (action) {
       case 'view':
         toast({
@@ -207,6 +213,12 @@ const Issues = () => {
     );
   }
 
+  // Count issues by status and priority
+  const openCount = issues ? issues.filter(i => i.status === "Open").length : 0;
+  const inProgressCount = issues ? issues.filter(i => i.status === "In Progress").length : 0;
+  const resolvedCount = issues ? issues.filter(i => i.status === "Resolved").length : 0;
+  const criticalCount = issues ? issues.filter(i => i.priority === "Critical" && i.status !== "Resolved").length : 0;
+
   return (
     <PageLayout>
       <div className="mb-6 flex justify-between items-center">
@@ -216,7 +228,10 @@ const Issues = () => {
             Track and resolve problems across all projects
           </p>
         </div>
-        <IssueForm onIssueCreated={handleIssueCreated} />
+        <IssueForm 
+          onIssueCreated={handleIssueCreated} 
+          initialProjectId={projectFilter || undefined}
+        />
       </div>
 
       
@@ -227,9 +242,7 @@ const Issues = () => {
               <div className="bg-gray-100 p-3 rounded-full mb-2">
                 <AlertTriangle className="h-6 w-6 text-gray-500" />
               </div>
-              <p className="text-lg font-medium">
-                {issues && issues.filter((i) => i.status === "Open").length}
-              </p>
+              <p className="text-lg font-medium">{openCount}</p>
               <p className="text-sm text-gray-500">Open</p>
             </div>
           </CardContent>
@@ -240,9 +253,7 @@ const Issues = () => {
               <div className="bg-blue-100 p-3 rounded-full mb-2">
                 <AlertTriangle className="h-6 w-6 text-blue-500" />
               </div>
-              <p className="text-lg font-medium">
-                {issues && issues.filter((i) => i.status === "In Progress").length}
-              </p>
+              <p className="text-lg font-medium">{inProgressCount}</p>
               <p className="text-sm text-gray-500">In Progress</p>
             </div>
           </CardContent>
@@ -253,9 +264,7 @@ const Issues = () => {
               <div className="bg-green-100 p-3 rounded-full mb-2">
                 <AlertTriangle className="h-6 w-6 text-green-500" />
               </div>
-              <p className="text-lg font-medium">
-                {issues && issues.filter((i) => i.status === "Resolved").length}
-              </p>
+              <p className="text-lg font-medium">{resolvedCount}</p>
               <p className="text-sm text-gray-500">Resolved</p>
             </div>
           </CardContent>
@@ -266,9 +275,7 @@ const Issues = () => {
               <div className="bg-red-100 p-3 rounded-full mb-2">
                 <AlertTriangle className="h-6 w-6 text-red-500" />
               </div>
-              <p className="text-lg font-medium">
-                {issues && issues.filter((i) => i.priority === "Critical" && i.status !== "Resolved").length}
-              </p>
+              <p className="text-lg font-medium">{criticalCount}</p>
               <p className="text-sm text-gray-500">Critical</p>
             </div>
           </CardContent>
@@ -288,6 +295,31 @@ const Issues = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            
+            {/* Project filter dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  {projectFilter ? getProjectName(projectFilter) : "All Projects"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setProjectFilter(null)}>
+                  All Projects
+                </DropdownMenuItem>
+                {projects?.map(project => (
+                  <DropdownMenuItem 
+                    key={project.id} 
+                    onClick={() => setProjectFilter(project.id)}
+                  >
+                    {project.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {/* Status filter dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -310,6 +342,8 @@ const Issues = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            
+            {/* Priority filter dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -356,60 +390,67 @@ const Issues = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredIssues.map((issue) => (
-                <TableRow key={issue.id}>
-                  <TableCell className="max-w-[240px]">
-                    <div className="font-medium">{issue.title}</div>
-                    <div className="text-gray-500 text-xs truncate">{issue.description}</div>
-                  </TableCell>
-                  <TableCell>{issue.project_id ? getProjectName(issue.project_id) : "N/A"}</TableCell>
-                  <TableCell>
-                    {typeof issue.reported_by === 'object' && issue.reported_by ? 
-                      `${formatUserName(issue.reported_by)}` : 
-                      "Unknown"}
-                  </TableCell>
-                  <TableCell>
-                    {typeof issue.assigned_to === 'object' && issue.assigned_to ? 
-                      `${formatUserName(issue.assigned_to)}` : 
-                      "Unassigned"}
-                  </TableCell>
-                  <TableCell>{new Date(issue.report_date).toLocaleDateString()}</TableCell>
-                  <TableCell>{getPriorityBadge(issue.priority)}</TableCell>
-                  <TableCell>{getStatusBadge(issue.status)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleIssueAction('view', issue)}>
-                          View Details
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleIssueAction('edit', issue)}>
-                          Edit Issue
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleIssueAction('assign', issue)}>
-                          Assign
-                        </DropdownMenuItem>
-                        {issue.status !== "Resolved" && (
-                          <DropdownMenuItem onClick={() => handleIssueAction('resolve', issue)}>
-                            Mark as Resolved
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredIssues.length === 0 && (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-10 text-gray-500">
-                    No issues found matching your filters
+                  <TableCell colSpan={8} className="text-center py-10">
+                    <div className="flex justify-center items-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                      <span className="ml-3">Loading...</span>
+                    </div>
                   </TableCell>
                 </TableRow>
+              ) : (
+                <>
+                  {filteredIssues.map((issue) => (
+                    <TableRow key={issue.id}>
+                      <TableCell className="max-w-[240px]">
+                        <div className="font-medium">{issue.title}</div>
+                        <div className="text-gray-500 text-xs truncate">{issue.description}</div>
+                      </TableCell>
+                      <TableCell>
+                        {issue.projects ? issue.projects.name : getProjectName(issue.project_id)}
+                      </TableCell>
+                      <TableCell>{formatUserName(issue.reported_by)}</TableCell>
+                      <TableCell>{formatUserName(issue.assigned_to)}</TableCell>
+                      <TableCell>{new Date(issue.report_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{getPriorityBadge(issue.priority)}</TableCell>
+                      <TableCell>{getStatusBadge(issue.status)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleIssueAction('view', issue)}>
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleIssueAction('edit', issue)}>
+                              Edit Issue
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleIssueAction('assign', issue)}>
+                              Assign
+                            </DropdownMenuItem>
+                            {issue.status !== "Resolved" && (
+                              <DropdownMenuItem onClick={() => handleIssueAction('resolve', issue)}>
+                                Mark as Resolved
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredIssues.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                        No issues found matching your filters
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               )}
             </TableBody>
           </Table>

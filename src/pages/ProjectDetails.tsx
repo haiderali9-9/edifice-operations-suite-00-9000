@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -23,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import ProjectTeam from "@/components/projects/ProjectTeam";
 import ProjectResources from "@/components/projects/ProjectResources";
+import ProjectIssues from "@/components/projects/ProjectIssues";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Project, Task, Document } from "@/types";
@@ -350,6 +350,7 @@ const ProjectDetails = () => {
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="issues">Issues</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
@@ -416,6 +417,24 @@ const ProjectDetails = () => {
                   </TableBody>
                 </Table>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* New Issues Tab */}
+        <TabsContent value="issues">
+          <Card>
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle>Project Issues</CardTitle>
+              <Button 
+                size="sm" 
+                onClick={() => navigate(`/issues`, { state: { projectId: project.id } })}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Report Issue
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {projectId && <ProjectIssues projectId={projectId} />}
             </CardContent>
           </Card>
         </TabsContent>
