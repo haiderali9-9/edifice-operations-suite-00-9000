@@ -48,6 +48,170 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          budget: number | null
+          client: string | null
+          completion: number | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          location: string | null
+          manager_id: string | null
+          name: string
+          start_date: string | null
+          status: string | null
+        }
+        Insert: {
+          budget?: number | null
+          client?: string | null
+          completion?: number | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          manager_id?: string | null
+          name: string
+          start_date?: string | null
+          status?: string | null
+        }
+        Update: {
+          budget?: number | null
+          client?: string | null
+          completion?: number | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          location?: string | null
+          manager_id?: string | null
+          name?: string
+          start_date?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_allocations: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string | null
+          quantity: number
+          resource_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          quantity: number
+          resource_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          quantity?: number
+          resource_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_allocations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_allocations_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resources: {
+        Row: {
+          cost: number
+          created_at: string | null
+          id: string
+          name: string
+          quantity: number
+          status: string | null
+          type: string | null
+          unit: string
+        }
+        Insert: {
+          cost: number
+          created_at?: string | null
+          id?: string
+          name: string
+          quantity: number
+          status?: string | null
+          type?: string | null
+          unit: string
+        }
+        Update: {
+          cost?: number
+          created_at?: string | null
+          id?: string
+          name?: string
+          quantity?: number
+          status?: string | null
+          type?: string | null
+          unit?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string | null
+          role: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          role: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string | null
+          role?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
