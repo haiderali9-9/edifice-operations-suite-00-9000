@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -108,7 +109,8 @@ const EventForm: React.FC<EventFormProps> = ({ onEventCreated }) => {
       
       const typedResources = data?.map(resource => ({
         ...resource,
-        type: resource.type as "Material" | "Equipment" | "Labor"
+        type: resource.type as "Material" | "Equipment" | "Labor",
+        status: resource.status as "Available" | "Low Stock" | "Out of Stock"
       })) || [];
       
       setResources(typedResources);
