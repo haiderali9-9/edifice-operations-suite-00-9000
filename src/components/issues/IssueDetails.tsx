@@ -13,7 +13,7 @@ interface IssueDetailsProps {
 const IssueDetails: React.FC<IssueDetailsProps> = ({ issue }) => {
   const [open, setOpen] = React.useState(false);
 
-  const getStatusBadge = (status: Issue['status']) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "Open":
         return <Badge variant="outline" className="bg-gray-100 text-gray-800">Open</Badge>;
@@ -26,7 +26,7 @@ const IssueDetails: React.FC<IssueDetailsProps> = ({ issue }) => {
     }
   };
 
-  const getPriorityBadge = (priority: Issue['priority']) => {
+  const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case "Critical":
         return <Badge variant="outline" className="bg-red-100 text-red-800">Critical</Badge>;

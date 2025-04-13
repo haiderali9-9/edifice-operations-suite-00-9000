@@ -1,3 +1,4 @@
+
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -37,8 +38,8 @@ export interface Issue {
   project_id: string;
   title: string;
   description?: string;
-  status: 'Open' | 'In Progress' | 'Resolved';
-  priority: 'Low' | 'Medium' | 'High' | 'Critical';
+  status: 'Open' | 'In Progress' | 'Resolved' | string; // Updated to handle any string from DB
+  priority: 'Low' | 'Medium' | 'High' | 'Critical' | string; // Updated to handle any string from DB
   report_date: string;
   resolution_date?: string;
   reported_by: string | User;
