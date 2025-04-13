@@ -49,6 +49,7 @@ export interface Resource {
   unit: string;
   cost: number;
   status: 'Available' | 'Low Stock' | 'Out of Stock';
+  returnable: boolean;
   resource_allocations?: ResourceAllocation[];
 }
 

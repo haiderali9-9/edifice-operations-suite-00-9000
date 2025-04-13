@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,16 +20,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Resource } from "@/types";
-import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2 } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ResourceStatus from "@/components/dashboard/ResourceStatus";
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   
   // Fetch resources from Supabase
   const { data: resources, isLoading: resourcesLoading, error } = useQuery({
@@ -62,10 +64,13 @@ const Resources = () => {
         unit: resource.unit,
         cost: resource.cost,
         status: resource.status,
-        allocated: allocationsData
+        returnable: resource.returnable || false,
+        resource_allocations: allocationsData
           .filter(allocation => allocation.resource_id === resource.id)
           .map(allocation => ({
-            projectId: allocation.project_id,
+            id: allocation.id,
+            resource_id: allocation.resource_id,
+            project_id: allocation.project_id,
             quantity: allocation.quantity
           }))
       })) as Resource[];
@@ -82,13 +87,17 @@ const Resources = () => {
     }
   }, [error]);
 
-  // Filter resources based on search term and type filter
+  // Filter resources based on search term, type filter, and category filter
   const filteredResources = resources
     ? resources.filter((resource) => {
         const matchesSearch = resource.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesType = typeFilter ? resource.type === typeFilter : true;
+        const matchesCategory = categoryFilter 
+          ? (categoryFilter === "Returnable" && resource.returnable) || 
+            (categoryFilter === "Consumable" && !resource.returnable)
+          : true;
 
-        return matchesSearch && matchesType;
+        return matchesSearch && matchesType && matchesCategory;
       })
     : [];
 
@@ -103,6 +112,12 @@ const Resources = () => {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getResourceCategoryBadge = (returnable: boolean) => {
+    return returnable ? 
+      <Badge variant="outline" className="bg-purple-100 text-purple-800">Returnable</Badge> :
+      <Badge variant="outline" className="bg-teal-100 text-teal-800">Consumable</Badge>;
   };
 
   const formatCurrency = (value: number) => {
@@ -233,6 +248,25 @@ const Resources = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <ArrowLeftRight className="h-4 w-4" />
+                  {categoryFilter ? categoryFilter : "All Categories"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setCategoryFilter(null)}>
+                  All Categories
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCategoryFilter("Returnable")}>
+                  Returnable
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCategoryFilter("Consumable")}>
+                  Consumable
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -251,6 +285,7 @@ const Resources = () => {
                   <TableRow>
                     <TableHead>Resource Name</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Unit</TableHead>
                     <TableHead>Cost</TableHead>
@@ -261,7 +296,7 @@ const Resources = () => {
                 <TableBody>
                   {resourcesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center">
+                      <TableCell colSpan={8} className="h-24 text-center">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                         <p className="text-sm text-gray-500 mt-2">Loading resources...</p>
                       </TableCell>
@@ -276,6 +311,7 @@ const Resources = () => {
                             {resource.type}
                           </div>
                         </TableCell>
+                        <TableCell>{getResourceCategoryBadge(resource.returnable || false)}</TableCell>
                         <TableCell>{resource.quantity}</TableCell>
                         <TableCell>{resource.unit}</TableCell>
                         <TableCell>{formatCurrency(resource.cost)} / {resource.unit}</TableCell>
@@ -300,7 +336,7 @@ const Resources = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                      <TableCell colSpan={8} className="text-center py-10 text-gray-500">
                         No resources found matching your filters
                       </TableCell>
                     </TableRow>

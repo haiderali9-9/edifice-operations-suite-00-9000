@@ -11,8 +11,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2, ArrowLeftRight } from "lucide-react";
 
 interface ResourceStatusProps {
   resources?: Resource[];
@@ -44,6 +44,12 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
     }
   };
 
+  const getResourceCategoryBadge = (returnable: boolean) => {
+    return returnable ? 
+      <Badge variant="outline" className="bg-purple-100 text-purple-800">Returnable</Badge> :
+      <Badge variant="outline" className="bg-teal-100 text-teal-800">Consumable</Badge>;
+  };
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-3">
@@ -60,6 +66,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
               <TableRow>
                 <TableHead>Resource</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Status</TableHead>
               </TableRow>
@@ -70,6 +77,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                   <TableRow key={resource.id}>
                     <TableCell className="font-medium">{resource.name}</TableCell>
                     <TableCell>{resource.type}</TableCell>
+                    <TableCell>{getResourceCategoryBadge(resource.returnable || false)}</TableCell>
                     <TableCell className="text-right">
                       {resource.quantity - (resource.resource_allocations?.reduce((sum, a) => sum + a.quantity, 0) || 0)} / {resource.quantity} {resource.unit}
                     </TableCell>
@@ -78,7 +86,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                  <TableCell colSpan={5} className="text-center py-6 text-gray-500">
                     No resources available
                   </TableCell>
                 </TableRow>

@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -19,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { Resource } from '@/types';
 
 interface AddResourceModalProps {
@@ -80,8 +81,8 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
     
     try {
       // Check if resource is already assigned to this project
-      const { data: existingResource, error: checkError } = await supabase
-        .from('project_resources')
+      const { data: existingAllocation, error: checkError } = await supabase
+        .from('resource_allocations')
         .select('*')
         .eq('project_id', projectId)
         .eq('resource_id', selectedResource)
@@ -90,17 +91,17 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
       if (checkError) throw checkError;
 
       // If resource already exists, update quantity instead of inserting
-      if (existingResource) {
+      if (existingAllocation) {
         const { error } = await supabase
-          .from('project_resources')
-          .update({ quantity: existingResource.quantity + quantity })
-          .eq('id', existingResource.id);
+          .from('resource_allocations')
+          .update({ quantity: existingAllocation.quantity + quantity })
+          .eq('id', existingAllocation.id);
           
         if (error) throw error;
       } else {
-        // Add resource to project_resources table
+        // Add resource to resource_allocations table
         const { error } = await supabase
-          .from('project_resources')
+          .from('resource_allocations')
           .insert({
             project_id: projectId,
             resource_id: selectedResource,
@@ -139,16 +140,24 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
     if (onResourceAdded) onResourceAdded();
   };
 
+  const getResourceTypeLabel = (resource: Resource) => {
+    const returnableLabel = resource.returnable ? '(Returnable)' : '(Consumable)';
+    return `${resource.name} (${resource.type}) ${returnableLabel} - ${resource.quantity} ${resource.unit} available`;
+  };
+
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       setOpen(newOpen);
       if (!newOpen) handleClose();
     }}>
       <DialogContent className="sm:max-w-[550px]">
+        <DialogHeader>
+          <DialogTitle>Add Resource to Project</DialogTitle>
+          <DialogDescription>
+            Select a resource to add to this project. Returnable resources can be returned when finished.
+          </DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Add Resource to Project</DialogTitle>
-          </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="resource">Select Resource</Label>
@@ -165,7 +174,7 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResour
                   ) : (
                     resources.map((resource) => (
                       <SelectItem key={resource.id} value={resource.id}>
-                        {resource.name} ({resource.type}) - {resource.quantity} {resource.unit} available
+                        {getResourceTypeLabel(resource)}
                       </SelectItem>
                     ))
                   )}

@@ -17,10 +17,12 @@ import {
   Truck, 
   Users,
   Box,
-  HardDrive
+  HardDrive,
+  ArrowLeftRight,
+  Trash2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Resource } from '@/types';
 import {
@@ -51,34 +53,41 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
   const fetchProjectResources = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('project_resources')
-        .select(`
-          id,
-          quantity,
-          resources (
-            id,
-            name,
-            type,
-            quantity,
-            unit,
-            cost,
-            status
-          )
-        `)
+      
+      // First, get all resource allocations for this project
+      const { data: allocations, error: allocationsError } = await supabase
+        .from('resource_allocations')
+        .select('id, quantity, resource_id')
         .eq('project_id', projectId);
-
-      if (error) throw error;
-
-      // Fix the type casting for resources
-      const formattedResources: ProjectResource[] = data.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        // Cast the single resource object correctly, not as an array
-        resource: item.resources as unknown as Resource
-      }));
-
-      setProjectResources(formattedResources);
+      
+      if (allocationsError) throw allocationsError;
+      
+      if (allocations && allocations.length > 0) {
+        // Get all resources associated with these allocations
+        const resourceIds = allocations.map(alloc => alloc.resource_id);
+        
+        const { data: resources, error: resourcesError } = await supabase
+          .from('resources')
+          .select('*')
+          .in('id', resourceIds);
+        
+        if (resourcesError) throw resourcesError;
+        
+        // Map the resources back to their allocations
+        const formattedResources: ProjectResource[] = allocations.map(allocation => {
+          const matchingResource = resources.find(resource => resource.id === allocation.resource_id);
+          return {
+            id: allocation.id,
+            quantity: allocation.quantity,
+            resource: matchingResource as Resource
+          };
+        });
+        
+        setProjectResources(formattedResources);
+      } else {
+        setProjectResources([]);
+      }
+      
     } catch (error) {
       console.error("Error fetching project resources:", error);
       toast({
@@ -104,7 +113,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
     setShowAddResourceModal(false);
   };
 
-  const getResourceTypeIcon = (type: string) => {
+  const getResourceTypeIcon = (type: string, returnable: boolean) => {
     switch (type) {
       case 'Material':
         return <Box className="h-4 w-4 text-blue-500" />;
@@ -115,6 +124,12 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
       default:
         return <Package className="h-4 w-4 text-gray-500" />;
     }
+  };
+
+  const getResourceTypeTag = (returnable: boolean) => {
+    return returnable ? 
+      <Badge variant="outline" className="bg-purple-100 text-purple-800">Returnable</Badge> :
+      <Badge variant="outline" className="bg-teal-100 text-teal-800">Consumable</Badge>;
   };
 
   const getStatusBadge = (status: string) => {
@@ -140,7 +155,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
   const handleRemoveResource = async (resourceId: string) => {
     try {
       const { error } = await supabase
-        .from('project_resources')
+        .from('resource_allocations')
         .delete()
         .eq('id', resourceId);
 
@@ -182,6 +197,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
             <TableRow>
               <TableHead>Resource</TableHead>
               <TableHead>Type</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Unit Cost</TableHead>
               <TableHead>Status</TableHead>
@@ -195,9 +211,12 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                   <TableCell className="font-medium">{projectResource.resource.name}</TableCell>
                   <TableCell>
                     <div className="flex items-center">
-                      {getResourceTypeIcon(projectResource.resource.type)}
+                      {getResourceTypeIcon(projectResource.resource.type, projectResource.resource.returnable)}
                       <span className="ml-2">{projectResource.resource.type}</span>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {getResourceTypeTag(projectResource.resource.returnable || false)}
                   </TableCell>
                   <TableCell>{projectResource.quantity} {projectResource.resource.unit}</TableCell>
                   <TableCell>{formatCurrency(projectResource.resource.cost)}</TableCell>
@@ -212,6 +231,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => handleRemoveResource(projectResource.id)}>
+                          <Trash2 className="h-4 w-4 mr-2 text-red-500" />
                           Remove Resource
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -221,7 +241,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                <TableCell colSpan={7} className="text-center py-10 text-gray-500">
                   No resources assigned to this project yet.
                 </TableCell>
               </TableRow>
