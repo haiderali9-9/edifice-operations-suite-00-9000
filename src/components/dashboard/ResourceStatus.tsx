@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Resource, ResourceAllocation } from "@/types";
@@ -13,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeftRight, RotateCcw, Trash2, RefreshCw, Plus, Reset } from "lucide-react";
+import { Loader2, ArrowLeftRight, RotateCcw, Trash2, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -43,7 +42,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
   const [newCost, setNewCost] = useState<number | null>(null);
   const [resourceToReset, setResourceToReset] = useState<Resource | null>(null);
   
-  // Sort resources by status (critical first)
   const sortedResources = resources 
     ? [...resources].sort((a, b) => {
         if (a.status === "Out of Stock" && b.status !== "Out of Stock") return -1;
@@ -80,14 +78,12 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
   const confirmReturnResource = async () => {
     if (!resourceToReturn) return;
     
-    // Only allow returning resources that are returnable and have allocations
     if (!resourceToReturn.returnable || !resourceToReturn.resource_allocations || resourceToReturn.resource_allocations.length === 0) {
       toast.error("This resource cannot be returned");
       return;
     }
     
     try {
-      // Delete all allocations for this resource
       const { error } = await supabase
         .from('resource_allocations')
         .delete()
@@ -99,8 +95,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         description: `${resourceToReturn.name} has been returned to inventory.`
       });
       
-      // Trigger refetch through query invalidation
-      window.location.reload(); // Simple refresh to update data
+      window.location.reload();
     } catch (error) {
       console.error("Error returning resource:", error);
       toast.error("Failed to process the return");
@@ -117,9 +112,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
     if (!resourceToDelete) return;
     
     try {
-      // Check if resource has any allocations
       if (resourceToDelete.resource_allocations && resourceToDelete.resource_allocations.length > 0) {
-        // Delete all allocations first
         const { error: allocationError } = await supabase
           .from('resource_allocations')
           .delete()
@@ -128,7 +121,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         if (allocationError) throw allocationError;
       }
       
-      // Then delete the resource
       const { error } = await supabase
         .from('resources')
         .delete()
@@ -140,8 +132,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         description: `${resourceToDelete.name} has been permanently removed.`
       });
       
-      // Trigger refetch through query invalidation
-      window.location.reload(); // Simple refresh to update data
+      window.location.reload();
     } catch (error) {
       console.error("Error deleting resource:", error);
       toast.error("Failed to delete resource");
@@ -150,19 +141,16 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
     }
   };
 
-  // New handler for opening the refill dialog
   const handleRefillResource = (resource: Resource) => {
     setResourceToRefill(resource);
     setRefillQuantity(0);
     setNewCost(resource.cost);
   };
 
-  // New handler for confirming the refill operation
   const confirmRefillResource = async () => {
     if (!resourceToRefill || refillQuantity <= 0) return;
     
     try {
-      // Update the resource quantity and cost
       const { error } = await supabase
         .from('resources')
         .update({ 
@@ -178,12 +166,10 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         description: `${resourceToRefill.name} refilled with ${refillQuantity} units`
       });
       
-      // Close the dialog and reset state
       setResourceToRefill(null);
       setRefillQuantity(0);
       setNewCost(null);
       
-      // Refresh page to see updates
       window.location.reload();
     } catch (error) {
       console.error("Error refilling resource:", error);
@@ -191,9 +177,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
     }
   };
 
-  // New handler for resetting consumable resources
   const handleResetResource = (resource: Resource) => {
-    // Only allow resetting consumable resources (not returnable)
     if (resource.returnable) {
       toast.error("Only consumable resources can be reset");
       return;
@@ -202,12 +186,10 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
     setResourceToReset(resource);
   };
   
-  // New handler for confirming the reset operation
   const confirmResetResource = async () => {
     if (!resourceToReset) return;
     
     try {
-      // First, delete all allocations for this resource
       if (resourceToReset.resource_allocations && resourceToReset.resource_allocations.length > 0) {
         const { error: allocationsError } = await supabase
           .from('resource_allocations')
@@ -217,7 +199,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         if (allocationsError) throw allocationsError;
       }
       
-      // Then update resource status to Available
       const { error } = await supabase
         .from('resources')
         .update({ 
@@ -231,7 +212,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         description: `${resourceToReset.name} has been reset. All allocations cleared.`
       });
       
-      // Refresh to update data
       window.location.reload();
     } catch (error) {
       console.error("Error resetting resource:", error);
@@ -298,7 +278,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                           </Button>
                         )}
                         
-                        {/* Reset button for consumable resources */}
                         {!resource.returnable && (
                           <Button
                             variant="ghost"
@@ -337,7 +316,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         )}
       </CardContent>
       
-      {/* Return Resource Dialog */}
       <AlertDialog open={!!resourceToReturn} onOpenChange={() => setResourceToReturn(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -356,7 +334,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Delete Resource Dialog */}
       <AlertDialog open={!!resourceToDelete} onOpenChange={() => setResourceToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -378,7 +355,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         </AlertDialogContent>
       </AlertDialog>
       
-      {/* Refill Resource Dialog */}
       <Dialog open={!!resourceToRefill} onOpenChange={(open) => !open && setResourceToRefill(null)}>
         <DialogContent>
           <DialogHeader>
@@ -438,7 +414,6 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
         </DialogContent>
       </Dialog>
       
-      {/* Reset Resource Dialog */}
       <AlertDialog open={!!resourceToReset} onOpenChange={() => setResourceToReset(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
