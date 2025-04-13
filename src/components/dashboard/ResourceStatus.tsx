@@ -12,9 +12,20 @@ import {
 } from "@/components/ui/table";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeftRight, RotateCcw } from "lucide-react";
+import { Loader2, ArrowLeftRight, RotateCcw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ResourceStatusProps {
   resources?: Resource[];
@@ -22,6 +33,9 @@ interface ResourceStatusProps {
 }
 
 const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
+  const [resourceToReturn, setResourceToReturn] = useState<Resource | null>(null);
+  const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
+  
   // Sort resources by status (critical first)
   const sortedResources = resources 
     ? [...resources].sort((a, b) => {
@@ -53,30 +67,79 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
   };
 
   const handleReturnResource = async (resource: Resource) => {
+    setResourceToReturn(resource);
+  };
+  
+  const confirmReturnResource = async () => {
+    if (!resourceToReturn) return;
+    
     // Only allow returning resources that are returnable and have allocations
-    if (!resource.returnable || !resource.resource_allocations || resource.resource_allocations.length === 0) {
+    if (!resourceToReturn.returnable || !resourceToReturn.resource_allocations || resourceToReturn.resource_allocations.length === 0) {
       toast.error("This resource cannot be returned");
       return;
     }
     
     try {
-      // For simplicity, this example just deletes the allocation
+      // Delete all allocations for this resource
       const { error } = await supabase
         .from('resource_allocations')
         .delete()
-        .eq('resource_id', resource.id);
+        .eq('resource_id', resourceToReturn.id);
       
       if (error) throw error;
       
       toast.success("Resource marked as returned", {
-        description: `${resource.name} has been returned to inventory.`
+        description: `${resourceToReturn.name} has been returned to inventory.`
       });
       
-      // You would typically refetch resources here
-      // This component would need to be updated to include a refetch mechanism
+      // Trigger refetch through query invalidation
+      window.location.reload(); // Simple refresh to update data
     } catch (error) {
       console.error("Error returning resource:", error);
       toast.error("Failed to process the return");
+    } finally {
+      setResourceToReturn(null);
+    }
+  };
+  
+  const handleDeleteResource = (resource: Resource) => {
+    setResourceToDelete(resource);
+  };
+  
+  const confirmDeleteResource = async () => {
+    if (!resourceToDelete) return;
+    
+    try {
+      // Check if resource has any allocations
+      if (resourceToDelete.resource_allocations && resourceToDelete.resource_allocations.length > 0) {
+        // Delete all allocations first
+        const { error: allocationError } = await supabase
+          .from('resource_allocations')
+          .delete()
+          .eq('resource_id', resourceToDelete.id);
+          
+        if (allocationError) throw allocationError;
+      }
+      
+      // Then delete the resource
+      const { error } = await supabase
+        .from('resources')
+        .delete()
+        .eq('id', resourceToDelete.id);
+      
+      if (error) throw error;
+      
+      toast.success("Resource deleted", {
+        description: `${resourceToDelete.name} has been permanently removed.`
+      });
+      
+      // Trigger refetch through query invalidation
+      window.location.reload(); // Simple refresh to update data
+    } catch (error) {
+      console.error("Error deleting resource:", error);
+      toast.error("Failed to delete resource");
+    } finally {
+      setResourceToDelete(null);
     }
   };
 
@@ -99,7 +162,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                 <TableHead>Category</TableHead>
                 <TableHead className="text-right">Available</TableHead>
                 <TableHead className="text-right">Status</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
+                <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -114,17 +177,28 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                     </TableCell>
                     <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
                     <TableCell>
-                      {resource.returnable && resource.resource_allocations && resource.resource_allocations.length > 0 && (
+                      <div className="flex space-x-1">
+                        {resource.returnable && resource.resource_allocations && resource.resource_allocations.length > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-green-600"
+                            onClick={() => handleReturnResource(resource)}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                            <span className="sr-only">Return</span>
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-green-600"
-                          onClick={() => handleReturnResource(resource)}
+                          className="text-red-600"
+                          onClick={() => handleDeleteResource(resource)}
                         >
-                          <RotateCcw className="h-4 w-4" />
-                          <span className="sr-only">Return</span>
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
                         </Button>
-                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -139,6 +213,47 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
           </Table>
         )}
       </CardContent>
+      
+      {/* Return Resource Dialog */}
+      <AlertDialog open={!!resourceToReturn} onOpenChange={() => setResourceToReturn(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Return Resource</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark {resourceToReturn?.name} as returned to inventory? 
+              This will remove all project allocations for this resource.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReturnResource}>
+              Return to Inventory
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Delete Resource Dialog */}
+      <AlertDialog open={!!resourceToDelete} onOpenChange={() => setResourceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Resource</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete {resourceToDelete?.name}? 
+              This action cannot be undone and will remove all allocations of this resource.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteResource}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };

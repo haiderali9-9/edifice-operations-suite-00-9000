@@ -33,6 +33,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import AddResourceModal from './AddResourceModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProjectResourcesProps {
   projectId: string;
@@ -50,6 +60,8 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [projectResources, setProjectResources] = useState<ProjectResource[]>([]);
   const [showAddResourceModal, setShowAddResourceModal] = useState(false);
+  const [deleteResourceId, setDeleteResourceId] = useState<string | null>(null);
+  const [consumeResourceId, setConsumeResourceId] = useState<string | null>(null);
 
   // Fetch project resources
   const fetchProjectResources = async () => {
@@ -159,11 +171,17 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
   };
 
   const handleRemoveResource = async (resourceId: string) => {
+    setDeleteResourceId(resourceId);
+  };
+
+  const confirmDeleteResource = async () => {
+    if (!deleteResourceId) return;
+    
     try {
       const { error } = await supabase
         .from('resource_allocations')
         .delete()
-        .eq('id', resourceId);
+        .eq('id', deleteResourceId);
 
       if (error) throw error;
 
@@ -180,16 +198,24 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
         description: "Failed to remove the resource.",
         variant: "destructive"
       });
+    } finally {
+      setDeleteResourceId(null);
     }
   };
 
   // Function to mark consumable resource as totally consumed
   const handleMarkAsConsumed = async (resourceId: string) => {
+    setConsumeResourceId(resourceId);
+  };
+
+  const confirmMarkAsConsumed = async () => {
+    if (!consumeResourceId) return;
+    
     try {
       const { error } = await supabase
         .from('resource_allocations')
         .update({ consumed: true })
-        .eq('id', resourceId);
+        .eq('id', consumeResourceId);
 
       if (error) throw error;
 
@@ -206,6 +232,8 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
         description: "Failed to update resource status.",
         variant: "destructive"
       });
+    } finally {
+      setConsumeResourceId(null);
     }
   };
 
@@ -266,26 +294,28 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                   <TableCell>{formatCurrency(projectResource.resource.cost)}</TableCell>
                   <TableCell>{getStatusBadge(projectResource.resource.status)}</TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
+                    <div className="flex space-x-2">
+                      {!projectResource.consumed && !projectResource.resource.returnable ? (
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-green-600"
+                          onClick={() => handleMarkAsConsumed(projectResource.id)}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          <span className="sr-only">Mark as Consumed</span>
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {!projectResource.resource.returnable && !projectResource.consumed && (
-                          <DropdownMenuItem onClick={() => handleMarkAsConsumed(projectResource.id)}>
-                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                            Mark as Consumed
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => handleRemoveResource(projectResource.id)}>
-                          <Trash2 className="h-4 w-4 mr-2 text-red-500" />
-                          Remove Resource
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-red-600"
+                        onClick={() => handleRemoveResource(projectResource.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -307,6 +337,47 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
           onClose={() => setShowAddResourceModal(false)}
         />
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteResourceId} onOpenChange={() => setDeleteResourceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Resource</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this resource from the project?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteResource}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Mark as Consumed Confirmation Dialog */}
+      <AlertDialog open={!!consumeResourceId} onOpenChange={() => setConsumeResourceId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark Resource as Consumed</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to mark this resource as totally consumed?
+              This will update the resource status and mark it as used.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmMarkAsConsumed}>
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

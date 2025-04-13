@@ -1,216 +1,318 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetClose,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { supabase } from '@/integrations/supabase/client';
-import { Resource } from '@/types';
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Resource } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface AddResourceModalProps {
   projectId: string;
-  onResourceAdded?: () => void;
-  onClose?: () => void;
+  onResourceAdded: () => void;
+  onClose: () => void;
 }
 
-const AddResourceModal: React.FC<AddResourceModalProps> = ({ projectId, onResourceAdded, onClose }) => {
-  const { toast } = useToast();
-  const [open, setOpen] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedResource, setSelectedResource] = useState<string>('');
-  const [quantity, setQuantity] = useState<number>(1);
+const AddResourceModal: React.FC<AddResourceModalProps> = ({
+  projectId,
+  onResourceAdded,
+  onClose,
+}) => {
   const [resources, setResources] = useState<Resource[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+  const [availableQuantity, setAvailableQuantity] = useState(0);
 
+  const FormSchema = z.object({
+    resourceId: z.string({
+      required_error: "Please select a resource",
+    }),
+    quantity: z.coerce
+      .number()
+      .positive("Quantity must be positive")
+      .max(availableQuantity, `Maximum available quantity is ${availableQuantity}`),
+  });
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      resourceId: "",
+      quantity: 1,
+    },
+  });
+
+  // Fetch available resources
   useEffect(() => {
     const fetchResources = async () => {
-      setIsLoading(true);
+      setLoading(true);
       try {
-        const { data, error } = await supabase
+        // First, fetch all resources
+        const { data: resourcesData, error: resourcesError } = await supabase
           .from('resources')
           .select('*')
           .order('name');
         
-        if (error) throw error;
+        if (resourcesError) throw resourcesError;
+
+        // Then fetch all allocations
+        const { data: allocationsData, error: allocationsError } = await supabase
+          .from('resource_allocations')
+          .select('*');
         
-        const formattedResources = (data || []).map(resource => ({
-          ...resource,
-          returnable: resource.returnable || false
-        })) as Resource[];
+        if (allocationsError) throw allocationsError;
+
+        // Calculate available quantity for each resource
+        const resourcesWithAvailability = resourcesData.map(resource => {
+          const allocations = allocationsData.filter(alloc => 
+            alloc.resource_id === resource.id && !alloc.consumed
+          );
+          const allocatedQuantity = allocations.reduce(
+            (sum, alloc) => sum + (alloc.quantity || 0), 
+            0
+          );
+          
+          // Determine status based on available quantity
+          let status = resource.status;
+          const availableQty = resource.quantity - allocatedQuantity;
+          
+          if (availableQty <= 0) {
+            status = "Out of Stock";
+          } else if (availableQty < resource.quantity * 0.2) { // Less than 20%
+            status = "Low Stock";
+          } else {
+            status = "Available";
+          }
+          
+          // Update resource with availability info
+          return {
+            ...resource,
+            allocated: allocatedQuantity,
+            available: availableQty,
+            status
+          } as Resource;
+        });
         
-        setResources(formattedResources);
+        // Filter out resources that are out of stock
+        const availableResources = resourcesWithAvailability.filter(
+          resource => resource.available > 0
+        );
+        
+        setResources(availableResources);
       } catch (error) {
-        console.error("Error fetching resources:", error);
+        console.error("Error loading resources:", error);
         toast({
           title: "Error loading resources",
-          description: "Failed to load available resources.",
-          variant: "destructive"
+          description: "Could not load available resources",
+          variant: "destructive",
         });
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     fetchResources();
-  }, []);
+  }, [toast]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!selectedResource || quantity <= 0) {
-      toast({
-        title: "Invalid input",
-        description: "Please select a resource and enter a valid quantity",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
-    try {
-      const { data: existingAllocation, error: checkError } = await supabase
-        .from('resource_allocations')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('resource_id', selectedResource)
-        .maybeSingle();
-      
-      if (checkError) throw checkError;
-
-      if (existingAllocation) {
-        const { error } = await supabase
-          .from('resource_allocations')
-          .update({ quantity: existingAllocation.quantity + quantity })
-          .eq('id', existingAllocation.id);
-          
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('resource_allocations')
-          .insert({
-            project_id: projectId,
-            resource_id: selectedResource,
-            quantity: quantity
-          });
-        
-        if (error) throw error;
+  // Watch for resource selection and update available quantity
+  const watchResourceId = form.watch("resourceId");
+  
+  useEffect(() => {
+    if (watchResourceId) {
+      const resource = resources.find(r => r.id === watchResourceId);
+      if (resource) {
+        setSelectedResource(resource);
+        setAvailableQuantity(resource.available || resource.quantity);
+        form.setValue("quantity", 1);
       }
-      
+    }
+  }, [watchResourceId, resources, form]);
+
+  const onSubmit = async (data: z.infer<typeof FormSchema>) => {
+    try {
+      if (!selectedResource) {
+        toast({
+          title: "Selection error",
+          description: "Please select a resource first",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Double check available quantity
+      if (data.quantity > availableQuantity) {
+        toast({
+          title: "Quantity error",
+          description: `Only ${availableQuantity} units available`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create resource allocation
+      const { error } = await supabase.from("resource_allocations").insert({
+        project_id: projectId,
+        resource_id: data.resourceId,
+        quantity: data.quantity,
+        consumed: false,
+      });
+
+      if (error) throw error;
+
       toast({
         title: "Resource added",
-        description: "The resource has been added to the project.",
+        description: "Resource has been added to the project",
       });
-      
-      setSelectedResource('');
-      setQuantity(1);
-      
-      handleClose();
-    } catch (error: any) {
+
+      onResourceAdded();
+    } catch (error) {
       console.error("Error adding resource:", error);
       toast({
-        title: "Error adding resource",
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive"
+        title: "Error",
+        description: "Failed to add resource to project",
+        variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
-  };
-
-  const handleClose = () => {
-    setOpen(false);
-    if (onClose) onClose();
-    if (onResourceAdded) onResourceAdded();
-  };
-
-  const getResourceTypeLabel = (resource: Resource) => {
-    const returnableLabel = resource.returnable ? '(Returnable)' : '(Consumable)';
-    return `${resource.name} (${resource.type}) ${returnableLabel} - ${resource.quantity} ${resource.unit} available`;
   };
 
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      setOpen(newOpen);
-      if (!newOpen) handleClose();
-    }}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <DialogTitle>Add Resource to Project</DialogTitle>
-          <DialogDescription>
-            Select a resource to add to this project. Returnable resources can be returned when finished.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="resource">Select Resource</Label>
-              <Select value={selectedResource} onValueChange={setSelectedResource} required>
-                <SelectTrigger id="resource">
-                  <SelectValue placeholder="Select resource" />
-                </SelectTrigger>
-                <SelectContent>
-                  {isLoading ? (
-                    <div className="flex items-center justify-center p-2">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Loading...
-                    </div>
-                  ) : (
-                    resources.map((resource) => (
-                      <SelectItem key={resource.id} value={resource.id}>
-                        {getResourceTypeLabel(resource)}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input 
-                id="quantity" 
-                type="number" 
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value) || 0)}
-                min={1}
-                required
+    <Sheet open={true} onOpenChange={onClose}>
+      <SheetContent className="sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Add Resource</SheetTitle>
+          <SheetDescription>
+            Add a resource to this project from available inventory
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="py-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="resourceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Resource</FormLabel>
+                    <FormControl>
+                      <Select
+                        disabled={loading}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a resource" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {resources.map((resource) => (
+                            <SelectItem key={resource.id} value={resource.id}>
+                              <div className="flex justify-between w-full">
+                                <span>{resource.name}</span>
+                                <span className="text-sm text-gray-500">
+                                  ({resource.available || resource.quantity} {resource.unit} available)
+                                </span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                          {resources.length === 0 && (
+                            <div className="p-2 text-center text-sm text-gray-500">
+                              {loading ? "Loading resources..." : "No resources available"}
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormDescription>
+                      Select a resource to add to this project
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 
-                  Adding...
-                </>
-              ) : (
-                'Add Resource'
+
+              {selectedResource && (
+                <div className="rounded-md bg-gray-50 p-4 mb-4">
+                  <div className="text-sm">
+                    <p><span className="font-medium">Type:</span> {selectedResource.type}</p>
+                    <p><span className="font-medium">Category:</span> {selectedResource.returnable ? 'Returnable' : 'Consumable'}</p>
+                    <p><span className="font-medium">Cost:</span> ${selectedResource.cost} per {selectedResource.unit}</p>
+                    <p><span className="font-medium">Available:</span> {availableQuantity} {selectedResource.unit}</p>
+                  </div>
+                </div>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={availableQuantity}
+                        {...field}
+                        disabled={!selectedResource}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {selectedResource ? 
+                        `Enter quantity (max: ${availableQuantity} ${selectedResource.unit})` : 
+                        "Select a resource first"}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end gap-4 pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={onClose}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={loading || !selectedResource || form.formState.isSubmitting}
+                >
+                  {form.formState.isSubmitting ? "Adding..." : "Add Resource"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 };
 
