@@ -28,7 +28,7 @@ import { supabase } from "@/lib/supabase";
 import { Project, Task, Document } from "@/types";
 import NewTaskModal from "@/components/tasks/NewTaskModal";
 import EditTaskModal from "@/components/tasks/EditTaskModal";
-import DocumentUploader from "@/components/documents/DocumentUploader";
+import DocumentSelector from "@/components/documents/DocumentSelector";
 
 const ProjectDetails = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -188,11 +188,11 @@ const ProjectDetails = () => {
     refetchTasks();
   };
 
-  // Handle document upload
-  const handleDocumentUploaded = () => {
+  // Handle document selection
+  const handleDocumentSelected = () => {
     toast({
-      title: "Document Uploaded",
-      description: "Document has been added to the project.",
+      title: "Document Linked",
+      description: "Document has been linked to the project.",
     });
     refetchDocuments();
   };
@@ -436,9 +436,9 @@ const ProjectDetails = () => {
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle>Project Documents</CardTitle>
-              <DocumentUploader 
-                projectId={projectId!} 
-                onDocumentUploaded={handleDocumentUploaded}
+              <DocumentSelector
+                projectId={projectId!}
+                onDocumentSelected={handleDocumentSelected}
               />
             </CardHeader>
             <CardContent>
@@ -476,7 +476,7 @@ const ProjectDetails = () => {
                     ))
                   ) : (
                     <div className="col-span-3 text-center py-12 text-gray-500">
-                      No documents uploaded to this project yet
+                      No documents linked to this project yet
                     </div>
                   )}
                 </div>

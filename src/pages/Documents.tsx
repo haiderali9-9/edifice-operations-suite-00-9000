@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,7 @@ import {
   Share2,
   Eye,
   Clock,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,84 +43,38 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import DocumentUploader from "@/components/documents/DocumentUploader";
-
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  project: string;
-  size: string;
-  uploadedBy: string;
-  uploadDate: string;
-}
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import { Document } from "@/types";
 
 const Documents = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [documents, setDocuments] = useState<Document[]>([
-    {
-      id: "1",
-      name: "Skyline Tower - Architectural Plans.pdf",
-      type: "Blueprint",
-      project: "Skyline Tower",
-      size: "18.5 MB",
-      uploadedBy: "Sarah Johnson",
-      uploadDate: "2025-04-01",
-    },
-    {
-      id: "2",
-      name: "Oceanview Project Contract.docx",
-      type: "Contract",
-      project: "Oceanview Residences",
-      size: "2.3 MB",
-      uploadedBy: "John Smith",
-      uploadDate: "2025-03-28",
-    },
-    {
-      id: "3",
-      name: "Building Permit - Central Business Hub.pdf",
-      type: "Permit",
-      project: "Central Business Hub",
-      size: "1.7 MB",
-      uploadedBy: "Jessica Williams",
-      uploadDate: "2025-03-25",
-    },
-    {
-      id: "4",
-      name: "Material Invoice - March.xlsx",
-      type: "Invoice",
-      project: "Skyline Tower",
-      size: "1.2 MB",
-      uploadedBy: "Robert Brown",
-      uploadDate: "2025-03-22",
-    },
-    {
-      id: "5",
-      name: "Safety Inspection Report - Q1.pdf",
-      type: "Report",
-      project: "Riverside Complex",
-      size: "4.8 MB",
-      uploadedBy: "Michael Chen",
-      uploadDate: "2025-03-15",
-    },
-    {
-      id: "6",
-      name: "Site Survey - Mountain View.pdf",
-      type: "Report",
-      project: "Mountain View Condos",
-      size: "8.3 MB",
-      uploadedBy: "Sarah Johnson",
-      uploadDate: "2025-03-10",
-    },
-  ]);
+  
+  // Fetch documents from Supabase
+  const { data: documents = [], isLoading, refetch } = useQuery({
+    queryKey: ['documents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*, projects(name)')
+        .order('upload_date', { ascending: false });
+      
+      if (error) throw error;
+      
+      return data.map(doc => ({
+        ...doc,
+        project: doc.projects?.name || 'Unknown Project'
+      })) as (Document & { project: string })[];
+    }
+  });
 
   const documentTypes = ["All", "Blueprint", "Contract", "Permit", "Invoice", "Report", "Other"];
 
   const filteredDocuments = documents.filter((doc) => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          doc.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          doc.uploadedBy.toLowerCase().includes(searchTerm.toLowerCase());
+                          doc.project.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = !selectedType || selectedType === "All" || doc.type === selectedType;
     return matchesSearch && matchesType;
   });
@@ -165,34 +121,77 @@ const Documents = () => {
     }
   };
   
-  const handleDocumentAction = (action: string, doc: Document) => {
+  const handleDocumentAction = async (action: string, doc: Document & { project: string }) => {
     switch (action) {
       case 'view':
+        // Open the document in a new tab
+        window.open(doc.url, "_blank");
         toast({
           title: "Viewing document",
           description: `Opening ${doc.name}`,
         });
         break;
       case 'download':
+        // Trigger download
+        const link = document.createElement('a');
+        link.href = doc.url;
+        link.download = doc.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
         toast({
           title: "Download started",
           description: `Downloading ${doc.name}`,
         });
         break;
       case 'share':
+        // Copy link to clipboard
+        navigator.clipboard.writeText(doc.url);
         toast({
-          title: "Sharing document",
-          description: `Sharing options for ${doc.name}`,
+          title: "Link copied",
+          description: `Document link copied to clipboard`,
         });
         break;
       case 'delete':
-        // Simulate deleting the document
+        // Delete the document
         if (confirm(`Are you sure you want to delete ${doc.name}?`)) {
-          setDocuments(prevDocs => prevDocs.filter(d => d.id !== doc.id));
-          toast({
-            title: "Document deleted",
-            description: `${doc.name} has been deleted`,
-          });
+          try {
+            // First delete from storage using the URL
+            const urlParts = doc.url.split('/');
+            const filePath = urlParts[urlParts.length - 2] + '/' + urlParts[urlParts.length - 1];
+            
+            const { error: storageError } = await supabase
+              .storage
+              .from('project_documents')
+              .remove([filePath]);
+            
+            if (storageError) {
+              console.error("Error removing file from storage:", storageError);
+            }
+            
+            // Then delete the database record
+            const { error: dbError } = await supabase
+              .from('documents')
+              .delete()
+              .eq('id', doc.id);
+            
+            if (dbError) throw dbError;
+            
+            refetch(); // Refresh the document list
+            
+            toast({
+              title: "Document deleted",
+              description: `${doc.name} has been deleted`,
+            });
+          } catch (error) {
+            console.error("Error deleting document:", error);
+            toast({
+              title: "Delete failed",
+              description: "There was an error deleting the document",
+              variant: "destructive",
+            });
+          }
         }
         break;
       default:
@@ -201,9 +200,13 @@ const Documents = () => {
   };
 
   const handleDocumentUploaded = () => {
-    // In a real app, we would refresh the document list from the server
-    // For now, we'll just refresh the UI with existing data
-    setDocuments([...documents]);
+    refetch(); // Refresh the document list after upload
+  };
+
+  // Format file size (not available from database, may need to display differently)
+  const getFileSize = (doc: Document) => {
+    // For now, return a placeholder
+    return "~";
   };
 
   return (
@@ -260,88 +263,96 @@ const Documents = () => {
           <CardTitle className="text-xl">Project Documents</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead>Uploaded By</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead className="w-[80px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredDocuments.length > 0 ? (
-                filteredDocuments.map((doc) => (
-                  <TableRow key={doc.id} className="cursor-pointer hover:bg-gray-50" onClick={() => {
-                    handleDocumentAction('view', doc);
-                  }}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(doc.type)}
-                        <span className="font-medium">{doc.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getTypeBadge(doc.type)}</TableCell>
-                    <TableCell>{doc.project}</TableCell>
-                    <TableCell>{doc.size}</TableCell>
-                    <TableCell className="whitespace-nowrap">{doc.uploadedBy}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3 text-gray-400" />
-                        <span className="whitespace-nowrap">{formatDate(doc.uploadDate)}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Open menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            handleDocumentAction('view', doc);
-                          }}>
-                            <Eye className="h-4 w-4 mr-2" /> View
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            handleDocumentAction('download', doc);
-                          }}>
-                            <Download className="h-4 w-4 mr-2" /> Download
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            handleDocumentAction('share', doc);
-                          }}>
-                            <Share2 className="h-4 w-4 mr-2" /> Share
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            handleDocumentAction('delete', doc);
-                          }} className="text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+          {isLoading ? (
+            <div className="flex justify-center items-center p-16">
+              <Loader2 className="h-8 w-8 animate-spin text-construction-600" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Uploaded By</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredDocuments.length > 0 ? (
+                  filteredDocuments.map((doc) => (
+                    <TableRow key={doc.id} className="cursor-pointer hover:bg-gray-50" onClick={() => {
+                      handleDocumentAction('view', doc);
+                    }}>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getTypeIcon(doc.type)}
+                          <span className="font-medium">{doc.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getTypeBadge(doc.type)}</TableCell>
+                      <TableCell>{doc.project}</TableCell>
+                      <TableCell>{getFileSize(doc)}</TableCell>
+                      <TableCell className="whitespace-nowrap">System</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-gray-400" />
+                          <span className="whitespace-nowrap">{formatDate(doc.upload_date)}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              handleDocumentAction('view', doc);
+                            }}>
+                              <Eye className="h-4 w-4 mr-2" /> View
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              handleDocumentAction('download', doc);
+                            }}>
+                              <Download className="h-4 w-4 mr-2" /> Download
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              handleDocumentAction('share', doc);
+                            }}>
+                              <Share2 className="h-4 w-4 mr-2" /> Share
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={(e) => {
+                              e.stopPropagation();
+                              handleDocumentAction('delete', doc);
+                            }} className="text-red-600">
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                      {searchTerm || selectedType ? 
+                        "No documents found matching your search criteria" : 
+                        "No documents have been uploaded yet"}
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-gray-500">
-                    No documents found matching your search criteria
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </PageLayout>
