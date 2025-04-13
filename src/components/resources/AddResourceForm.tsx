@@ -27,9 +27,28 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 
+// Predefined list of resources based on the image
+const availableResources = [
+  { name: "Brick", type: "Material" },
+  { name: "Cement", type: "Material" },
+  { name: "Crane", type: "Equipment" },
+  { name: "Drill", type: "Equipment" },
+  { name: "Forklift", type: "Equipment" },
+  { name: "Helmet", type: "Equipment" },
+  { name: "Ladder", type: "Equipment" },
+  { name: "Lumber", type: "Material" },
+  { name: "Steel", type: "Material" },
+];
+
+// Predefined list of measurement units
+const availableUnits = [
+  "kg", "tons", "cubic meters", "pieces", "pallets", 
+  "hours", "days", "meters", "square meters"
+];
+
 // Define form schema for resource validation
 const resourceSchema = z.object({
-  name: z.string().min(3, "Name must be at least 3 characters"),
+  name: z.string().min(1, "Resource name is required"),
   type: z.enum(["Material", "Equipment", "Labor"]),
   quantity: z.coerce.number().positive("Quantity must be positive"),
   unit: z.string().min(1, "Unit is required"),
@@ -63,13 +82,21 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
     },
   });
 
-  // Handle resource type change to set returnable default
-  const resourceType = form.watch("type");
-  React.useEffect(() => {
-    if (resourceType === "Equipment") {
-      form.setValue("returnable", true);
+  // Handle resource selection and auto-set the type
+  const handleResourceSelection = (resourceName: string) => {
+    const selectedResource = availableResources.find(r => r.name === resourceName);
+    if (selectedResource) {
+      form.setValue("name", resourceName);
+      form.setValue("type", selectedResource.type as any);
+      
+      // Set default returnable value for equipment
+      if (selectedResource.type === "Equipment") {
+        form.setValue("returnable", true);
+      } else {
+        form.setValue("returnable", false);
+      }
     }
-  }, [resourceType, form]);
+  };
 
   // Handle form submission
   const onSubmit = async (data: ResourceFormValues) => {
@@ -118,10 +145,24 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Resource Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter resource name" {...field} />
-              </FormControl>
+              <FormLabel>Resource</FormLabel>
+              <Select 
+                onValueChange={(value) => handleResourceSelection(value)} 
+                defaultValue={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a resource" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {availableResources.map((resource) => (
+                    <SelectItem key={resource.name} value={resource.name}>
+                      {resource.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -133,18 +174,12 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
           render={({ field }) => (
             <FormItem>
               <FormLabel>Resource Type</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Material">Material</SelectItem>
-                  <SelectItem value="Equipment">Equipment</SelectItem>
-                  <SelectItem value="Labor">Labor</SelectItem>
-                </SelectContent>
-              </Select>
+              <FormControl>
+                <Input value={field.value} readOnly className="bg-gray-50" />
+              </FormControl>
+              <FormDescription>
+                Type is automatically set based on the selected resource
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -171,9 +206,20 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Unit</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., kg, units, hours" {...field} />
-                </FormControl>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableUnits.map((unit) => (
+                      <SelectItem key={unit} value={unit}>
+                        {unit}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -232,6 +278,7 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
                 <Switch
                   checked={field.value}
                   onCheckedChange={field.onChange}
+                  disabled={form.watch("type") === "Equipment"} // Disable switch for equipment as they are always returnable
                 />
               </FormControl>
             </FormItem>
