@@ -78,6 +78,10 @@ export interface Resource {
   returnable: boolean;
   resource_allocations?: ResourceAllocation[];
   created_at?: string;
+  // Add the missing property that's causing the TypeScript errors
+  available?: number;
+  // Add other calculated properties that might be used
+  allocated?: number;
 }
 
 export interface ResourceAllocation {
