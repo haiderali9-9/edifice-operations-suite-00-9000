@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -40,14 +39,12 @@ const Issues = () => {
 
   const { toast } = useToast();
   
-  // Effect to handle initial project filter from navigation
   useEffect(() => {
     if (location.state?.projectId) {
       setProjectFilter(location.state.projectId);
     }
   }, [location.state]);
   
-  // Fetch issues from Supabase
   const { data: issues, isLoading, isError, refetch } = useQuery({
     queryKey: ['issues', projectFilter],
     queryFn: async () => {
@@ -60,7 +57,6 @@ const Issues = () => {
           projects:project_id(id, name)
         `);
       
-      // Apply project filter if set
       if (projectFilter) {
         query = query.eq('project_id', projectFilter);
       }
@@ -73,7 +69,6 @@ const Issues = () => {
     },
   });
 
-  // Fetch projects for filtering
   const { data: projects } = useQuery({
     queryKey: ['projects-simple'],
     queryFn: async () => {
@@ -86,7 +81,6 @@ const Issues = () => {
     },
   });
 
-  // Filter issues based on search term, status filter, and priority filter
   const filteredIssues = issues ? issues.filter((issue) => {
     const matchesSearch =
       issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -98,7 +92,6 @@ const Issues = () => {
     return matchesSearch && matchesStatus && matchesPriority;
   }) : [];
 
-  // Find project name by ID
   const getProjectName = (projectId: string) => {
     const project = projects?.find((p) => p.id === projectId);
     return project ? project.name : "Unknown Project";
@@ -134,6 +127,8 @@ const Issues = () => {
 
   const formatUserName = (user: any) => {
     if (!user) return "Unassigned";
+    if (user === "unassigned") return "Unassigned";
+    if (typeof user === 'string') return user;
     return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.id;
   };
 
@@ -221,7 +216,6 @@ const Issues = () => {
     );
   }
 
-  // Count issues by status and priority
   const openCount = issues ? issues.filter(i => i.status === "Open").length : 0;
   const inProgressCount = issues ? issues.filter(i => i.status === "In Progress").length : 0;
   const resolvedCount = issues ? issues.filter(i => i.status === "Resolved").length : 0;
@@ -242,7 +236,6 @@ const Issues = () => {
         />
       </div>
 
-      {/* Issue counts */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <CardContent className="pt-6">
@@ -290,7 +283,6 @@ const Issues = () => {
         </Card>
       </div>
 
-      {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-6">
           <div className="flex items-center gap-4 flex-wrap">
@@ -304,7 +296,6 @@ const Issues = () => {
               />
             </div>
             
-            {/* Project filter dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -327,7 +318,6 @@ const Issues = () => {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {/* Status filter dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -351,7 +341,6 @@ const Issues = () => {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {/* Priority filter dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -381,7 +370,6 @@ const Issues = () => {
         </CardContent>
       </Card>
 
-      {/* Issues table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -465,7 +453,6 @@ const Issues = () => {
         </CardContent>
       </Card>
 
-      {/* Edit Issue Dialog */}
       {selectedIssue && (
         <IssueForm
           isEditing={true}

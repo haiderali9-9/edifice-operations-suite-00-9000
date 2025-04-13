@@ -43,6 +43,7 @@ const IssueDetails: React.FC<IssueDetailsProps> = ({ issue }) => {
 
   const formatUserName = (user: any) => {
     if (!user) return 'Unassigned';
+    if (user === "unassigned") return "Unassigned";
     if (typeof user === 'string') return user;
     return `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User';
   };
