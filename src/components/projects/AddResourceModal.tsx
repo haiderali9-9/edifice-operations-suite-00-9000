@@ -39,12 +39,16 @@ interface AddResourceModalProps {
   projectId: string;
   onResourceAdded: () => void;
   onClose: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const AddResourceModal: React.FC<AddResourceModalProps> = ({
   projectId,
   onResourceAdded,
   onClose,
+  open,
+  onOpenChange,
 }) => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,9 +136,9 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
           } as Resource;
         });
         
-        // Filter out resources that are out of stock
+        // Filter out resources that are out of stock - only include available resources
         const availableResources = resourcesWithAvailability.filter(
-          resource => resource.available > 0
+          resource => resource.available > 0 && resource.status !== "Out of Stock"
         );
         
         setResources(availableResources);
@@ -166,6 +170,15 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
         // Reset duration fields
         form.setValue("days", 0);
         form.setValue("hours", 0);
+        
+        // Set appropriate duration type based on available rates
+        if (resource.returnable) {
+          if (resource.hour_rate) {
+            setDurationType("hours");
+          } else if (resource.day_rate) {
+            setDurationType("days");
+          }
+        }
       }
     }
   }, [watchResourceId, resources, form]);
@@ -221,7 +234,7 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
   };
 
   return (
-    <Sheet open={true} onOpenChange={onClose}>
+    <Sheet open={open !== undefined ? open : true} onOpenChange={onOpenChange || onClose}>
       <SheetContent className="sm:max-w-md">
         <SheetHeader>
           <SheetTitle>Add Resource</SheetTitle>
@@ -315,64 +328,111 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
                 <>
                   <div className="border-t pt-4">
                     <FormLabel className="block mb-2">Duration Allocation</FormLabel>
-                    <Tabs value={durationType} onValueChange={(value) => setDurationType(value as "days" | "hours")}>
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="days">Days</TabsTrigger>
-                        <TabsTrigger value="hours">Hours</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="days">
-                        <FormField
-                          control={form.control}
-                          name="days"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Number of Days</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    form.setValue("hours", 0); // Reset hours when days are set
-                                  }}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                How many days will this resource be used
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TabsContent>
-                      <TabsContent value="hours">
-                        <FormField
-                          control={form.control}
-                          name="hours"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Number of Hours</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  {...field}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    form.setValue("days", 0); // Reset days when hours are set
-                                  }}
-                                />
-                              </FormControl>
-                              <FormDescription>
-                                How many hours will this resource be used
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </TabsContent>
-                    </Tabs>
+                    {/* Only show tabs when both hour and day rates are available */}
+                    {selectedResource.hour_rate && selectedResource.day_rate ? (
+                      <Tabs value={durationType} onValueChange={(value) => setDurationType(value as "days" | "hours")}>
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="days">Days</TabsTrigger>
+                          <TabsTrigger value="hours">Hours</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="days">
+                          <FormField
+                            control={form.control}
+                            name="days"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Number of Days</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    {...field}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      form.setValue("hours", 0); // Reset hours when days are set
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  How many days will this resource be booked
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TabsContent>
+                        <TabsContent value="hours">
+                          <FormField
+                            control={form.control}
+                            name="hours"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Number of Hours</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    min={0}
+                                    {...field}
+                                    onChange={(e) => {
+                                      field.onChange(e);
+                                      form.setValue("days", 0); // Reset days when hours are set
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormDescription>
+                                  How many hours will this resource be booked
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    ) : selectedResource.hour_rate ? (
+                      // Only hours available
+                      <FormField
+                        control={form.control}
+                        name="hours"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Number of Hours</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              How many hours will this resource be booked
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : (
+                      // Only days available (default)
+                      <FormField
+                        control={form.control}
+                        name="days"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Number of Days</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={0}
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              How many days will this resource be booked
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
                 </>
               )}

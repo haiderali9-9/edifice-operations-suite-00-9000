@@ -15,15 +15,18 @@ import { Plus, RefreshCw, Trash } from "lucide-react";
 import { Resource, ResourceAllocation } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import AddResourceModal from "../resources/AddResourceModal";
+import AddResourceModal from "./AddResourceModal";
 
 // Updated interface to include resource property
 interface EnhancedResourceAllocation extends ResourceAllocation {
   resource: Resource;
 }
 
-const ProjectResources = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+interface ProjectResourcesProps {
+  projectId: string;
+}
+
+const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
   const [isLoading, setIsLoading] = useState(true);
   const [resources, setResources] = useState<EnhancedResourceAllocation[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -260,9 +263,11 @@ const ProjectResources = () => {
 
       {projectId && ( 
         <AddResourceModal
+          projectId={projectId}
           open={showAddModal}
           onOpenChange={setShowAddModal}
           onResourceAdded={handleResourceAdded}
+          onClose={() => setShowAddModal(false)}
         />
       )}
     </Card>
