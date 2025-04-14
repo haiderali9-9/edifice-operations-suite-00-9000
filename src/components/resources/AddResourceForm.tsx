@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 
 import {
   Form,
@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 
 // Predefined list of resources based on the image
@@ -57,9 +57,8 @@ const resourceSchema = z.object({
   cost: z.coerce.number().positive("Cost must be positive"),
   status: z.enum(["Available", "Low Stock", "Out of Stock"]),
   returnable: z.boolean().default(false),
-  hourRate: z.coerce.number().min(0, "Hourly rate must be non-negative").optional(),
-  dayRate: z.coerce.number().min(0, "Daily rate must be non-negative").optional(),
-  pricingType: z.enum(["none", "hourly", "daily"]).default("none"),
+  hourlyRate: z.boolean().default(false),
+  dailyRate: z.boolean().default(false),
 });
 
 type ResourceFormValues = z.infer<typeof resourceSchema>;
@@ -72,7 +71,6 @@ interface AddResourceFormProps {
 const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [pricingTab, setPricingTab] = React.useState<string>("none");
 
   // Set up form with default values
   const form = useForm<ResourceFormValues>({
@@ -85,16 +83,10 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
       cost: 0,
       status: "Available",
       returnable: false,
-      hourRate: 0,
-      dayRate: 0,
-      pricingType: "none",
+      hourlyRate: false,
+      dailyRate: false,
     },
   });
-
-  // Update pricing type when tab changes
-  useEffect(() => {
-    form.setValue("pricingType", pricingTab as any);
-  }, [pricingTab, form]);
 
   // Handle resource selection and auto-set the type
   const handleResourceSelection = (resourceName: string) => {
@@ -114,6 +106,23 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
 
   // Watch for returnable changes to update form
   const isReturnable = form.watch("returnable");
+  const isHourlyRate = form.watch("hourlyRate");
+  const isDailyRate = form.watch("dailyRate");
+
+  // Toggle pricing options
+  const handleHourlyRateChange = (checked: boolean) => {
+    form.setValue("hourlyRate", checked);
+    if (checked) {
+      form.setValue("dailyRate", false);
+    }
+  };
+
+  const handleDailyRateChange = (checked: boolean) => {
+    form.setValue("dailyRate", checked);
+    if (checked) {
+      form.setValue("hourlyRate", false);
+    }
+  };
 
   // Handle form submission
   const onSubmit = async (data: ResourceFormValues) => {
@@ -132,10 +141,10 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
 
       // Add pricing data if applicable
       if (data.returnable) {
-        if (data.pricingType === "hourly") {
-          resourceData["hour_rate"] = data.hourRate;
-        } else if (data.pricingType === "daily") {
-          resourceData["day_rate"] = data.dayRate;
+        if (data.hourlyRate) {
+          resourceData["hour_rate"] = data.cost;
+        } else if (data.dailyRate) {
+          resourceData["day_rate"] = data.cost;
         }
       }
 
@@ -167,7 +176,7 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
   };
 
   return (
-    <Card className="mx-auto max-w-md">
+    <Card className="mx-auto w-full max-w-md">
       <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -320,76 +329,50 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
               <div className="border rounded-md p-4 mt-4">
                 <FormLabel className="mb-2 block">Duration Pricing</FormLabel>
                 <FormDescription className="mb-3">
-                  Set pricing for time-based usage
+                  Select pricing type for time-based usage
                 </FormDescription>
                 
-                <Tabs 
-                  value={pricingTab} 
-                  onValueChange={setPricingTab}
-                  className="w-full"
-                >
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="none">No Pricing</TabsTrigger>
-                    <TabsTrigger value="hourly">Hourly Rate</TabsTrigger>
-                    <TabsTrigger value="daily">Daily Rate</TabsTrigger>
-                  </TabsList>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="hourlyRate" 
+                      checked={isHourlyRate} 
+                      onCheckedChange={handleHourlyRateChange}
+                    />
+                    <label
+                      htmlFor="hourlyRate"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Hourly Rate
+                    </label>
+                    {isHourlyRate && <Check className="h-4 w-4 text-green-500 ml-2" />}
+                  </div>
                   
-                  <TabsContent value="none">
-                    <p className="text-sm text-gray-500 py-4">
-                      No time-based pricing will be set for this resource.
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="dailyRate" 
+                      checked={isDailyRate}
+                      onCheckedChange={handleDailyRateChange}
+                    />
+                    <label
+                      htmlFor="dailyRate"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      Daily Rate
+                    </label>
+                    {isDailyRate && <Check className="h-4 w-4 text-green-500 ml-2" />}
+                  </div>
+                  
+                  {(isHourlyRate || isDailyRate) ? (
+                    <p className="text-sm text-green-500 mt-2">
+                      Base cost will be used as the {isHourlyRate ? "hourly" : "daily"} rate
                     </p>
-                  </TabsContent>
-                  
-                  <TabsContent value="hourly" className="pt-4">
-                    <FormField
-                      control={form.control}
-                      name="hourRate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Hourly Rate ($)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              {...field}
-                              placeholder="Rate per hour"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            The cost of using this resource for one hour
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="daily" className="pt-4">
-                    <FormField
-                      control={form.control}
-                      name="dayRate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Daily Rate ($)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              {...field}
-                              placeholder="Rate per day"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            The cost of using this resource for one day
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </TabsContent>
-                </Tabs>
+                  ) : (
+                    <p className="text-sm text-gray-500 mt-2">
+                      No time-based pricing selected
+                    </p>
+                  )}
+                </div>
               </div>
             )}
 

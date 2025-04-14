@@ -18,10 +18,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AddResourceModal from "../resources/AddResourceModal";
 
+// Updated interface to include resource property
+interface EnhancedResourceAllocation extends ResourceAllocation {
+  resource: Resource;
+}
+
 const ProjectResources = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const [isLoading, setIsLoading] = useState(true);
-  const [resources, setResources] = useState<ResourceAllocation[]>([]);
+  const [resources, setResources] = useState<EnhancedResourceAllocation[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const { toast } = useToast();
 
@@ -60,7 +65,7 @@ const ProjectResources = () => {
       const formattedResources = allocations.map(allocation => ({
         ...allocation,
         resource: allocation.resource as Resource
-      }));
+      })) as EnhancedResourceAllocation[];
       
       setResources(formattedResources);
     } catch (error) {
@@ -139,8 +144,7 @@ const ProjectResources = () => {
     }
   };
 
-  // Updated to correctly type task resources query result
-  const calculateTotalCost = (allocation: ResourceAllocation) => {
+  const calculateTotalCost = (allocation: EnhancedResourceAllocation) => {
     if (!allocation.resource) return 0;
     
     let cost = 0;

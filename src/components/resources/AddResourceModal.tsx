@@ -34,7 +34,7 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="h-full flex flex-col p-0 sm:max-w-md md:max-w-lg">
+      <SheetContent className="h-full flex flex-col p-0 sm:max-w-md md:max-w-lg lg:max-w-xl">
         <div className="flex-grow flex flex-col overflow-y-auto">
           <SheetHeader className="p-6 pb-2">
             <SheetTitle>Add New Resource</SheetTitle>
@@ -43,7 +43,7 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
             </SheetDescription>
           </SheetHeader>
           
-          <div className="flex-grow flex items-center justify-center p-6 pt-2">
+          <div className="flex-grow p-6 pt-2 flex justify-center">
             <AddResourceForm onSuccess={handleSuccess} onCancel={handleCancel} />
           </div>
         </div>
