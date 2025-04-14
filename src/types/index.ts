@@ -87,11 +87,11 @@ export interface User {
 export interface Resource {
   id: string;
   name: string;
-  type: 'Material' | 'Equipment' | 'Labor';
+  type: 'Material' | 'Equipment' | 'Labor' | string; // Updated to handle any string from DB
   quantity: number;
   unit: string;
   cost: number;
-  status: 'Available' | 'Low Stock' | 'Out of Stock';
+  status: 'Available' | 'Low Stock' | 'Out of Stock' | string; // Updated to handle any string from DB
   returnable: boolean;
   resource_allocations?: ResourceAllocation[];
   created_at?: string;
