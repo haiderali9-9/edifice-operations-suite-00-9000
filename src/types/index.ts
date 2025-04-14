@@ -1,5 +1,3 @@
-
-
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -12,12 +10,23 @@ export interface Task {
   end_date?: string;
   created_at: string;
   task_assignments?: TaskAssignment[];
+  task_resources?: TaskResource[];
 }
 
 export interface TaskAssignment {
   id: string;
   task_id: string;
   user_id: string;
+  user?: User;
+}
+
+export interface TaskResource {
+  id: string;
+  task_id: string;
+  resource_id: string;
+  hours?: number;
+  days?: number;
+  resource?: Resource;
 }
 
 export interface Document {
