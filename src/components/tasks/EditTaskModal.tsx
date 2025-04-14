@@ -71,7 +71,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const fetchTaskData = async () => {
     setIsLoading(true);
     try {
-      // Fetch task assignments
+      // Fetch task assignments - using explicit typing
       const { data: assignments, error: assignmentsError } = await supabase
         .from('task_assignments')
         .select('id, user_id')
@@ -80,9 +80,11 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       if (assignmentsError) throw assignmentsError;
       
       // Set selected team members
-      setSelectedTeamMembers(assignments.map(a => a.user_id));
+      if (assignments) {
+        setSelectedTeamMembers(assignments.map(a => a.user_id));
+      }
       
-      // Fetch task resources
+      // Fetch task resources - using explicit typing
       const { data: resources, error: resourcesError } = await supabase
         .from('task_resources')
         .select('id, resource_id, hours, days')
@@ -91,12 +93,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       if (resourcesError) throw resourcesError;
       
       // Set selected resources
-      setSelectedResources(resources.map(r => ({
-        id: r.resource_id,
-        assignmentId: r.id,
-        hours: r.hours,
-        days: r.days
-      })));
+      if (resources) {
+        setSelectedResources(resources.map(r => ({
+          id: r.resource_id,
+          assignmentId: r.id,
+          hours: r.hours || undefined,
+          days: r.days || undefined
+        })));
+      }
       
     } catch (error) {
       console.error("Error fetching task data:", error);
@@ -168,15 +172,21 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
       if (allocationsError) throw allocationsError;
 
-      // Transform the data to match the Resource interface
-      const formattedResources = allocations
-        .filter(allocation => allocation.resources.returnable)
-        .map(allocation => ({
-          ...allocation.resources,
-          available: allocation.quantity,
-        }));
+      if (allocations && allocations.length > 0) {
+        // Transform the data to match the Resource interface with proper type handling
+        const formattedResources = allocations
+          .filter(allocation => allocation.resources && allocation.resources.returnable)
+          .map(allocation => ({
+            ...allocation.resources,
+            available: allocation.quantity,
+            // Ensure 'type' is properly typed
+            type: allocation.resources.type as 'Material' | 'Equipment' | 'Labor'
+          }));
 
-      setProjectResources(formattedResources);
+        setProjectResources(formattedResources as Resource[]);
+      } else {
+        setProjectResources([]);
+      }
     } catch (error) {
       console.error("Error fetching project resources:", error);
     } finally {
@@ -261,35 +271,37 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         
       if (assignmentsError) throw assignmentsError;
       
-      // Determine assignments to add and remove
-      const currentUserIds = currentAssignments.map(a => a.user_id);
-      const assignmentsToAdd = selectedTeamMembers.filter(id => !currentUserIds.includes(id));
-      const assignmentsToRemove = currentAssignments
-        .filter(a => !selectedTeamMembers.includes(a.user_id))
-        .map(a => a.id);
-      
-      // Add new assignments
-      if (assignmentsToAdd.length > 0) {
-        const newAssignments = assignmentsToAdd.map(userId => ({
-          task_id: task.id,
-          user_id: userId
-        }));
+      if (currentAssignments) {
+        // Determine assignments to add and remove
+        const currentUserIds = currentAssignments.map(a => a.user_id);
+        const assignmentsToAdd = selectedTeamMembers.filter(id => !currentUserIds.includes(id));
+        const assignmentsToRemove = currentAssignments
+          .filter(a => !selectedTeamMembers.includes(a.user_id))
+          .map(a => a.id);
         
-        const { error: addError } = await supabase
-          .from('task_assignments')
-          .insert(newAssignments);
+        // Add new assignments
+        if (assignmentsToAdd.length > 0) {
+          const newAssignments = assignmentsToAdd.map(userId => ({
+            task_id: task.id,
+            user_id: userId
+          }));
           
-        if (addError) throw addError;
-      }
-      
-      // Remove old assignments
-      if (assignmentsToRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from('task_assignments')
-          .delete()
-          .in('id', assignmentsToRemove);
-          
-        if (removeError) throw removeError;
+          const { error: addError } = await supabase
+            .from('task_assignments')
+            .insert(newAssignments);
+            
+          if (addError) throw addError;
+        }
+        
+        // Remove old assignments
+        if (assignmentsToRemove.length > 0) {
+          const { error: removeError } = await supabase
+            .from('task_assignments')
+            .delete()
+            .in('id', assignmentsToRemove);
+            
+          if (removeError) throw removeError;
+        }
       }
       
       // Fetch current resource assignments
@@ -300,53 +312,55 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         
       if (resourcesError) throw resourcesError;
       
-      // Determine resources to add, update, and remove
-      const currentResourceIds = currentResources.map(r => r.resource_id);
-      const resourcesToAdd = selectedResources.filter(r => !r.assignmentId && !currentResourceIds.includes(r.id));
-      const resourcesToUpdate = selectedResources.filter(r => r.assignmentId);
-      const resourcesToRemove = currentResources
-        .filter(r => !selectedResources.some(sr => sr.id === r.resource_id))
-        .map(r => r.id);
-      
-      // Add new resources
-      if (resourcesToAdd.length > 0) {
-        const newResources = resourcesToAdd.map(resource => ({
-          task_id: task.id,
-          resource_id: resource.id,
-          hours: resource.hours,
-          days: resource.days
-        }));
+      if (currentResources) {
+        // Determine resources to add, update, and remove
+        const currentResourceIds = currentResources.map(r => r.resource_id);
+        const resourcesToAdd = selectedResources.filter(r => !r.assignmentId && !currentResourceIds.includes(r.id));
+        const resourcesToUpdate = selectedResources.filter(r => r.assignmentId);
+        const resourcesToRemove = currentResources
+          .filter(r => !selectedResources.some(sr => sr.id === r.resource_id))
+          .map(r => r.id);
         
-        const { error: addError } = await supabase
-          .from('task_resources')
-          .insert(newResources);
-          
-        if (addError) throw addError;
-      }
-      
-      // Update existing resources
-      for (const resource of resourcesToUpdate) {
-        if (!resource.assignmentId) continue;
-        
-        const { error: updateError } = await supabase
-          .from('task_resources')
-          .update({
+        // Add new resources
+        if (resourcesToAdd.length > 0) {
+          const newResources = resourcesToAdd.map(resource => ({
+            task_id: task.id,
+            resource_id: resource.id,
             hours: resource.hours,
             days: resource.days
-          })
-          .eq('id', resource.assignmentId);
+          }));
           
-        if (updateError) throw updateError;
-      }
-      
-      // Remove old resources
-      if (resourcesToRemove.length > 0) {
-        const { error: removeError } = await supabase
-          .from('task_resources')
-          .delete()
-          .in('id', resourcesToRemove);
+          const { error: addError } = await supabase
+            .from('task_resources')
+            .insert(newResources);
+            
+          if (addError) throw addError;
+        }
+        
+        // Update existing resources
+        for (const resource of resourcesToUpdate) {
+          if (!resource.assignmentId) continue;
           
-        if (removeError) throw removeError;
+          const { error: updateError } = await supabase
+            .from('task_resources')
+            .update({
+              hours: resource.hours,
+              days: resource.days
+            })
+            .eq('id', resource.assignmentId);
+            
+          if (updateError) throw updateError;
+        }
+        
+        // Remove old resources
+        if (resourcesToRemove.length > 0) {
+          const { error: removeError } = await supabase
+            .from('task_resources')
+            .delete()
+            .in('id', resourcesToRemove);
+            
+          if (removeError) throw removeError;
+        }
       }
 
       onTaskUpdated();

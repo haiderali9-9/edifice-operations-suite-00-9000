@@ -1,3 +1,4 @@
+
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;

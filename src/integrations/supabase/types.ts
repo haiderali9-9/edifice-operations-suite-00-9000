@@ -341,6 +341,77 @@ export type Database = {
           },
         ]
       }
+      task_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_resources: {
+        Row: {
+          created_at: string
+          days: number | null
+          hours: number | null
+          id: string
+          resource_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          days?: number | null
+          hours?: number | null
+          id?: string
+          resource_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number | null
+          hours?: number | null
+          id?: string
+          resource_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_resources_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_resources_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           created_at: string
