@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   ArrowLeft, Calendar, Users, MapPin, DollarSign, 
   ClipboardList, AlertCircle, Loader2, Plus, File, 
-  FileText, Download, Package 
+  FileText, Download, Package, Trash2
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +31,7 @@ import EditTaskModal from "@/components/tasks/EditTaskModal";
 import DocumentSelector from "@/components/documents/DocumentSelector";
 
 const ProjectDetails = () => {
+  
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -188,6 +189,49 @@ const ProjectDetails = () => {
     refetchTasks();
   };
 
+  // New function to handle task deletion
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      // First delete related task assignments
+      const { error: assignmentError } = await supabase
+        .from('task_assignments')
+        .delete()
+        .eq('task_id', taskId);
+      
+      if (assignmentError) throw assignmentError;
+      
+      // Then delete related task resources
+      const { error: resourceError } = await supabase
+        .from('task_resources')
+        .delete()
+        .eq('task_id', taskId);
+      
+      if (resourceError) throw resourceError;
+      
+      // Finally delete the task
+      const { error: taskError } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+      
+      if (taskError) throw taskError;
+      
+      toast({
+        title: "Task Deleted",
+        description: "Task has been removed from the project.",
+      });
+      
+      refetchTasks();
+    } catch (error) {
+      console.error("Error deleting task:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete task. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handle document selection
   const handleDocumentSelected = () => {
     toast({
@@ -321,7 +365,6 @@ const ProjectDetails = () => {
               <div>
                 <p className="text-sm text-gray-500">Resources</p>
                 <p className="text-lg font-medium">
-                  {/* Resource count will be shown here */}
                   <span className="text-sm text-gray-400">View in Resources tab</span>
                 </p>
               </div>
@@ -378,7 +421,7 @@ const ProjectDetails = () => {
                       <TableHead>Due Date</TableHead>
                       <TableHead>Priority</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="w-[80px]"></TableHead>
+                      <TableHead className="w-[140px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -400,10 +443,22 @@ const ProjectDetails = () => {
                           </TableCell>
                           <TableCell>{getTaskStatusBadge(task.status)}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)}>
-                              <FileText className="h-4 w-4" />
-                              <span className="sr-only">Edit</span>
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="icon" onClick={() => handleEditTask(task)} title="Edit Task">
+                                <FileText className="h-4 w-4" />
+                                <span className="sr-only">Edit</span>
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteTask(task.id)}
+                                title="Delete Task"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span className="sr-only">Delete</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -421,7 +476,7 @@ const ProjectDetails = () => {
           </Card>
         </TabsContent>
         
-        {/* New Issues Tab */}
+        
         <TabsContent value="issues">
           <Card>
             <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -439,7 +494,6 @@ const ProjectDetails = () => {
           </Card>
         </TabsContent>
         
-        {/* New Resources Tab */}
         <TabsContent value="resources">
           <Card>
             <CardHeader className="pb-0">

@@ -55,6 +55,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     id: string;
     hours?: number;
     days?: number;
+    quantity?: number;
   }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -172,22 +173,25 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     if (selectedResources.some(r => r.id === resourceId)) {
       setSelectedResources(prev => prev.filter(r => r.id !== resourceId));
     } else {
-      // Find the resource to determine if it uses hours or days
+      // Find the resource to determine if it uses hours, days, or quantity
       const resource = projectResources.find(r => r.id === resourceId);
       if (resource) {
         setSelectedResources(prev => [
           ...prev,
           { 
-            id: resourceId, 
+            id: resourceId,
+            // For returnable resources (like equipment and labor)
             hours: resource.type === 'Labor' ? 8 : undefined,
-            days: resource.type !== 'Labor' ? 1 : undefined 
+            days: resource.type !== 'Labor' && resource.returnable ? 1 : undefined,
+            // For consumable resources
+            quantity: !resource.returnable ? 1 : undefined
           }
         ]);
       }
     }
   };
 
-  const updateResourceAllocation = (resourceId: string, type: 'hours' | 'days', value: number) => {
+  const updateResourceAllocation = (resourceId: string, type: 'hours' | 'days' | 'quantity', value: number) => {
     setSelectedResources(prev => 
       prev.map(r => 
         r.id === resourceId 
@@ -241,7 +245,8 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
           task_id: taskId,
           resource_id: resource.id,
           hours: resource.hours,
-          days: resource.days
+          days: resource.days,
+          quantity: resource.quantity
         }));
         
         const { error: resourceError } = await supabase
@@ -417,7 +422,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                 ) : projectResources.length > 0 ? (
                   <div className="max-h-[240px] overflow-y-auto border rounded-md p-2">
                     {projectResources.map((resource) => (
-                      <div key={resource.id} className="mb-2">
+                      <div key={resource.id} className="mb-3 p-2 border-b border-gray-100 last:border-b-0">
                         <div className="flex items-center">
                           <Checkbox 
                             id={`resource-${resource.id}`}
@@ -432,9 +437,56 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                           </span>
                         </div>
                         
-                        {selectedResources.some(r => r.id === resource.id) && resource.returnable && (
+                        {selectedResources.some(r => r.id === resource.id) && (
                           <div className="ml-6 mt-2 flex items-center gap-2">
-                            {resource.type === 'Labor' ? (
+                            {/* Consumable resources: show quantity only */}
+                            {!resource.returnable && (
+                              <>
+                                <Label htmlFor={`quantity-${resource.id}`} className="text-xs whitespace-nowrap">Quantity:</Label>
+                                <div className="flex items-center border rounded-md">
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
+                                      if (current > 1) {
+                                        updateResourceAllocation(resource.id, 'quantity', current - 1);
+                                      }
+                                    }}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <Input
+                                    id={`quantity-${resource.id}`}
+                                    type="number"
+                                    className="w-16 h-8 text-center border-0"
+                                    value={selectedResources.find(r => r.id === resource.id)?.quantity || 0}
+                                    onChange={(e) => updateResourceAllocation(resource.id, 'quantity', parseInt(e.target.value) || 0)}
+                                    min={1}
+                                    max={resource.available}
+                                  />
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
+                                      if (current < resource.available) {
+                                        updateResourceAllocation(resource.id, 'quantity', current + 1);
+                                      }
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                            
+                            {/* Returnable resources: show hours for labor, days for others */}
+                            {resource.returnable && resource.type === 'Labor' && (
                               <>
                                 <Label htmlFor={`hours-${resource.id}`} className="text-xs whitespace-nowrap">Hours:</Label>
                                 <div className="flex items-center border rounded-md">
@@ -477,10 +529,12 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                   </Button>
                                 </div>
                               </>
-                            ) : (
+                            )}
+                            
+                            {resource.returnable && resource.type !== 'Labor' && (
                               <>
                                 <Label htmlFor={`days-${resource.id}`} className="text-xs whitespace-nowrap">Days:</Label>
-                                <div className="flex items-center border rounded-md">
+                                <div className="flex items-center border rounded-md mr-4">
                                   <Button 
                                     type="button" 
                                     variant="ghost" 
@@ -513,6 +567,47 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                       const current = selectedResources.find(r => r.id === resource.id)?.days || 0;
                                       if (current < resource.available) {
                                         updateResourceAllocation(resource.id, 'days', current + 1);
+                                      }
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                                
+                                <Label htmlFor={`quantity-${resource.id}`} className="text-xs whitespace-nowrap">Quantity:</Label>
+                                <div className="flex items-center border rounded-md">
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
+                                      if (current > 1) {
+                                        updateResourceAllocation(resource.id, 'quantity', current - 1);
+                                      }
+                                    }}
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                  <Input
+                                    id={`quantity-${resource.id}`}
+                                    type="number"
+                                    className="w-16 h-8 text-center border-0"
+                                    value={selectedResources.find(r => r.id === resource.id)?.quantity || 0}
+                                    onChange={(e) => updateResourceAllocation(resource.id, 'quantity', parseInt(e.target.value) || 0)}
+                                    min={1}
+                                    max={resource.available}
+                                  />
+                                  <Button 
+                                    type="button" 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-8 w-8"
+                                    onClick={() => {
+                                      const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
+                                      if (current < resource.available) {
+                                        updateResourceAllocation(resource.id, 'quantity', current + 1);
                                       }
                                     }}
                                   >
