@@ -34,14 +34,14 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md md:max-w-lg">
-        <SheetHeader>
+      <SheetContent className="flex flex-col items-center justify-center sm:max-w-md md:max-w-lg">
+        <SheetHeader className="w-full">
           <SheetTitle>Add New Resource</SheetTitle>
           <SheetDescription>
             Create a new resource to add to your inventory. Fill out the details below.
           </SheetDescription>
         </SheetHeader>
-        <div className="mt-6">
+        <div className="w-full flex justify-center items-center mt-6 pb-12">
           <AddResourceForm onSuccess={handleSuccess} onCancel={handleCancel} />
         </div>
       </SheetContent>

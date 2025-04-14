@@ -1,3 +1,4 @@
+
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -99,6 +100,9 @@ export interface Resource {
   available?: number;
   // Add other calculated properties that might be used
   allocated?: number;
+  // Add new pricing fields
+  hour_rate?: number;
+  day_rate?: number;
 }
 
 export interface ResourceAllocation {
