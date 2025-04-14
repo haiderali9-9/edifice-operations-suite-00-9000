@@ -265,6 +265,8 @@ export type Database = {
         Row: {
           cost: number
           created_at: string | null
+          day_rate: number | null
+          hour_rate: number | null
           id: string
           name: string
           quantity: number
@@ -276,6 +278,8 @@ export type Database = {
         Insert: {
           cost: number
           created_at?: string | null
+          day_rate?: number | null
+          hour_rate?: number | null
           id?: string
           name: string
           quantity: number
@@ -287,6 +291,8 @@ export type Database = {
         Update: {
           cost?: number
           created_at?: string | null
+          day_rate?: number | null
+          hour_rate?: number | null
           id?: string
           name?: string
           quantity?: number
