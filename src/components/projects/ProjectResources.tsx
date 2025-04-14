@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Trash } from "lucide-react";
+import { Plus, RefreshCw, Trash, ArrowDownToLine, Check } from "lucide-react";
 import { Resource, ResourceAllocation } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -146,6 +147,100 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
   };
 
+  const handleReturnResource = async (allocation: EnhancedResourceAllocation) => {
+    if (!allocation.resource.returnable) {
+      toast({
+        title: "Cannot Return",
+        description: "This resource cannot be returned as it's not a returnable resource.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Delete this allocation to mark as returned
+      const { error } = await supabase
+        .from("resource_allocations")
+        .delete()
+        .eq("id", allocation.id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Resource Returned",
+        description: `${allocation.resource.name} has been successfully returned.`,
+      });
+      
+      fetchResources();
+    } catch (error) {
+      console.error("Error returning resource:", error);
+      toast({
+        title: "Error",
+        description: "Failed to return the resource.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleConsumeResource = async (allocation: EnhancedResourceAllocation) => {
+    if (allocation.resource.returnable) {
+      toast({
+        title: "Cannot Consume",
+        description: "This is a returnable resource and cannot be consumed.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // First update the resource allocation to mark it as consumed
+      const { error: allocationError } = await supabase
+        .from("resource_allocations")
+        .update({ consumed: true })
+        .eq("id", allocation.id);
+
+      if (allocationError) throw allocationError;
+
+      // Get the current quantity of the resource
+      const { data: resourceData, error: resourceFetchError } = await supabase
+        .from("resources")
+        .select("quantity")
+        .eq("id", allocation.resource_id)
+        .single();
+
+      if (resourceFetchError) throw resourceFetchError;
+
+      // Calculate new quantity
+      const currentQuantity = resourceData.quantity;
+      const newQuantity = Math.max(0, currentQuantity - allocation.quantity);
+      
+      // Update the resource quantity
+      const { error: updateError } = await supabase
+        .from("resources")
+        .update({ 
+          quantity: newQuantity,
+          status: newQuantity === 0 ? 'Out of Stock' : newQuantity < 5 ? 'Low Stock' : 'Available'
+        })
+        .eq("id", allocation.resource_id);
+
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Resource Consumed",
+        description: `${allocation.resource.name} has been marked as consumed.`,
+      });
+      
+      fetchResources();
+    } catch (error) {
+      console.error("Error consuming resource:", error);
+      toast({
+        title: "Error",
+        description: "Failed to consume the resource.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const calculateTotalCost = (allocation: EnhancedResourceAllocation) => {
     if (!allocation.resource) return 0;
     
@@ -231,10 +326,22 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleMarkUsed(allocation.id)}
+                          onClick={() => handleReturnResource(allocation)}
+                          className="text-blue-600"
                         >
-                          <RefreshCw className="h-4 w-4" />
-                          <span className="sr-only">Mark as Used</span>
+                          <ArrowDownToLine className="h-4 w-4 mr-1" />
+                          Return
+                        </Button>
+                      )}
+                      {!allocation.consumed && !allocation.resource.returnable && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleConsumeResource(allocation)}
+                          className="text-green-600"
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Consume
                         </Button>
                       )}
                       <Button
