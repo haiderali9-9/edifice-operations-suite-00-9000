@@ -193,7 +193,7 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
 
     try {
-      // First update the resource allocation to mark it as consumed
+      // First mark the allocation as consumed
       const { error: allocationError } = await supabase
         .from("resource_allocations")
         .update({ consumed: true })
