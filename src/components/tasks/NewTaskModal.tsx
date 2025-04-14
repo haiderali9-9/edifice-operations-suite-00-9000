@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   const fetchProjectResources = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching resources for project:", projectId);
       // Fetch allocated resources for the project
       const { data: allocations, error: allocationsError } = await supabase
         .from('resource_allocations')
@@ -126,14 +128,17 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
         .eq('consumed', false);
 
       if (allocationsError) throw allocationsError;
+      
+      console.log("Raw allocations data:", allocations);
 
       // Transform the data to match the Resource interface
-      // Now include ALL resources, both returnable and consumable
+      // Include ALL resources, both returnable and consumable
       const formattedResources = allocations.map(allocation => ({
         ...allocation.resources,
         available: allocation.quantity,
       }));
-
+      
+      console.log("Formatted resources:", formattedResources);
       setProjectResources(formattedResources);
     } catch (error) {
       console.error("Error fetching project resources:", error);
@@ -162,6 +167,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   };
 
   const handleResourceSelect = (resourceId: string) => {
+    console.log("Resource selected:", resourceId);
     // Check if resource is already selected
     if (selectedResources.some(r => r.id === resourceId)) {
       setSelectedResources(prev => prev.filter(r => r.id !== resourceId));
@@ -268,11 +274,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>Add New Task</DialogTitle>
+          <DialogDescription>Create a new task for this project and assign team members and resources.</DialogDescription>
+        </DialogHeader>
         <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Add New Task</DialogTitle>
-          </DialogHeader>
-          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList className="grid grid-cols-3 mb-4">
               <TabsTrigger value="details">Task Details</TabsTrigger>
@@ -422,7 +428,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                             {resource.name}
                           </label>
                           <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded-full">
-                            {resource.type} • {resource.available} {resource.unit} {resource.returnable ? '(Returnable)' : '(Consumable)'}
+                            {resource.type} • {resource.available} {resource.unit} • {resource.returnable ? 'Returnable' : 'Consumable'}
                           </span>
                         </div>
                         
