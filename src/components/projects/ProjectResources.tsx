@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import AddResourceModal from "./AddResourceModal";
 
-// Updated interface to include resource property
 interface EnhancedResourceAllocation extends ResourceAllocation {
   resource: Resource;
 }
@@ -36,7 +34,6 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
   const fetchResources = async () => {
     setIsLoading(true);
     try {
-      // First fetch resource allocations
       const { data: allocations, error: allocError } = await supabase
         .from("resource_allocations")
         .select(`
@@ -64,7 +61,6 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
 
       if (allocError) throw allocError;
       
-      // Transform and set the resources data
       const formattedResources = allocations.map(allocation => ({
         ...allocation,
         resource: allocation.resource as Resource
@@ -158,7 +154,6 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
 
     try {
-      // Delete this allocation to mark as returned
       const { error } = await supabase
         .from("resource_allocations")
         .delete()
@@ -193,37 +188,12 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
 
     try {
-      // First mark the allocation as consumed
       const { error: allocationError } = await supabase
         .from("resource_allocations")
         .update({ consumed: true })
         .eq("id", allocation.id);
 
       if (allocationError) throw allocationError;
-
-      // Get the current quantity of the resource
-      const { data: resourceData, error: resourceFetchError } = await supabase
-        .from("resources")
-        .select("quantity")
-        .eq("id", allocation.resource_id)
-        .single();
-
-      if (resourceFetchError) throw resourceFetchError;
-
-      // Calculate new quantity
-      const currentQuantity = resourceData.quantity;
-      const newQuantity = Math.max(0, currentQuantity - allocation.quantity);
-      
-      // Update the resource quantity
-      const { error: updateError } = await supabase
-        .from("resources")
-        .update({ 
-          quantity: newQuantity,
-          status: newQuantity === 0 ? 'Out of Stock' : newQuantity < 5 ? 'Low Stock' : 'Available'
-        })
-        .eq("id", allocation.resource_id);
-
-      if (updateError) throw updateError;
       
       toast({
         title: "Resource Consumed",
@@ -246,27 +216,21 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     
     let cost = 0;
     
-    // Base cost calculation (quantity * unit cost)
     const baseCost = allocation.quantity * allocation.resource.cost;
     
-    // For returnable resources with time-based pricing
     if (allocation.resource.returnable) {
-      // Handle hourly pricing if available and hours are specified
       if (allocation.resource.hour_rate && allocation.hours) {
         cost += allocation.resource.hour_rate * allocation.hours;
       }
       
-      // Handle daily pricing if available and days are specified
       else if (allocation.resource.day_rate && allocation.days) {
         cost += allocation.resource.day_rate * allocation.days;
       }
       
-      // If no time-based pricing is provided, use base cost
       else {
         cost = baseCost;
       }
     } else {
-      // For consumable resources, just use the base cost
       cost = baseCost;
     }
     

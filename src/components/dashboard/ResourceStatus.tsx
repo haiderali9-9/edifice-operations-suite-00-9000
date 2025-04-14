@@ -52,6 +52,17 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
       })
     : [];
 
+  const calculateAvailableQuantity = (resource: Resource) => {
+    const allocatedQuantity = resource.resource_allocations?.reduce((sum, a) => {
+      if (!a.consumed) {
+        return sum + a.quantity;
+      }
+      return sum;
+    }, 0) || 0;
+    
+    return resource.quantity - allocatedQuantity;
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "Available":
@@ -251,7 +262,7 @@ const ResourceStatus = ({ resources, isLoading }: ResourceStatusProps) => {
                     <TableCell>{resource.type}</TableCell>
                     <TableCell>{getResourceCategoryBadge(resource.returnable)}</TableCell>
                     <TableCell className="text-right">
-                      {resource.quantity - (resource.resource_allocations?.reduce((sum, a) => sum + a.quantity, 0) || 0)} / {resource.quantity} {resource.unit}
+                      {calculateAvailableQuantity(resource)} / {resource.quantity} {resource.unit}
                     </TableCell>
                     <TableCell className="text-right">{getStatusBadge(resource.status)}</TableCell>
                     <TableCell>
