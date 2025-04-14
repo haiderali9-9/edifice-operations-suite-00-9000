@@ -16,7 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Download, MoreHorizontal, Eye, Send, Check, Clock } from 'lucide-react';
+import { Download, MoreHorizontal, Eye, Send, Check, Clock, Ban } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Invoice {
@@ -103,6 +103,13 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ invoices, onStatusChange }) =
           description: `Invoice ${invoice.number} has been marked as overdue`,
         });
         break;
+      case 'revert-to-draft':
+        onStatusChange(invoice.id, 'draft');
+        toast({
+          title: "Invoice reverted to draft",
+          description: `Invoice ${invoice.number} has been reverted to draft status`,
+        });
+        break;
       default:
         break;
     }
@@ -166,6 +173,11 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ invoices, onStatusChange }) =
                     {invoice.status === 'sent' && (
                       <DropdownMenuItem onClick={() => handleAction('mark-overdue', invoice)}>
                         <Clock className="h-4 w-4 mr-2" /> Mark as Overdue
+                      </DropdownMenuItem>
+                    )}
+                    {invoice.status !== 'draft' && (
+                      <DropdownMenuItem onClick={() => handleAction('revert-to-draft', invoice)}>
+                        <Ban className="h-4 w-4 mr-2" /> Revert to Draft
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>

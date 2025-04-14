@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { DollarSign, TrendingUp, TrendingDown, Plus, FilePlus, FileText, Wallet, Filter, Download, Calendar } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, Plus, FilePlus, FileText, Wallet, Filter, Download, Calendar, RefreshCcw } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -41,6 +40,37 @@ const Finances = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Function to recalculate resource costs for all projects
+  const recalculateResourceCosts = async () => {
+    try {
+      // Get all projects
+      const { data: projects } = await supabase
+        .from('projects')
+        .select('id');
+      
+      if (!projects || projects.length === 0) return;
+      
+      // Call the calculate function for each project
+      for (const project of projects) {
+        await supabase.rpc('calculate_project_resource_cost', { project_id: project.id });
+      }
+      
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      toast({
+        title: "Budget updated",
+        description: "Project budgets have been recalculated based on resource allocations.",
+      });
+    } catch (error) {
+      console.error('Error recalculating resource costs:', error);
+      toast({
+        title: "Update failed",
+        description: "Failed to recalculate project budgets. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Fetch projects data
   const { data: projects, isLoading: projectsLoading } = useQuery({
@@ -170,6 +200,11 @@ const Finances = () => {
     spent: project.resources_cost || 0,
     remaining: (project.budget || 0) - (project.resources_cost || 0)
   })) || [];
+
+  // Automatically recalculate resource costs on component mount
+  useEffect(() => {
+    recalculateResourceCosts();
+  }, []);
   
   return (
     <PageLayout>
@@ -181,6 +216,9 @@ const Finances = () => {
           </p>
         </div>
         <div className="flex space-x-2">
+          <Button variant="outline" onClick={recalculateResourceCosts}>
+            <RefreshCcw className="h-4 w-4 mr-2" /> Update Budget
+          </Button>
           <Button variant="outline">
             <Filter className="h-4 w-4 mr-2" /> Filter
           </Button>
@@ -383,7 +421,7 @@ const Finances = () => {
             </CardContent>
           </Card>
         </TabsContent>
-
+        
         <TabsContent value="invoices">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
