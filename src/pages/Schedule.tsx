@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -230,6 +231,8 @@ const Schedule = () => {
               project_id: allocation.project_id,
               day,
               hours: 8,
+              // Add the created_at property from the allocation
+              created_at: allocation.created_at
             };
           }).filter(Boolean);
           
@@ -247,27 +250,35 @@ const Schedule = () => {
 
   useEffect(() => {
     const checkReturnableDates = async () => {
+      // Get current date minus 7 days
       const returnDate = new Date();
       returnDate.setDate(returnDate.getDate() - 7);
       const returnDateStr = returnDate.toISOString();
       
-      const expiredAllocations = resourceAllocations
-        .flatMap(resource => 
-          resource.allocation.filter(alloc => 
-            new Date(alloc.created_at) < returnDate
-          ).map(alloc => alloc.id)
-        );
+      // Collect IDs of allocations that should be marked as consumed
+      const expiredAllocationIds = [];
       
-      if (expiredAllocations.length > 0) {
+      // Iterate through all resource allocations
+      for (const resource of resourceAllocations) {
+        for (const alloc of resource.allocation) {
+          if (alloc.created_at && new Date(alloc.created_at) < returnDate) {
+            expiredAllocationIds.push(alloc.id);
+          }
+        }
+      }
+      
+      // If there are expired allocations, update them
+      if (expiredAllocationIds.length > 0) {
         const { error } = await supabase
           .from('resource_allocations')
           .update({ consumed: true })
-          .in('id', expiredAllocations);
+          .in('id', expiredAllocationIds);
         
         if (error) {
           console.error('Error updating expired allocations:', error);
         } else {
-          console.log(`Marked ${expiredAllocations.length} expired allocations as consumed`);
+          console.log(`Marked ${expiredAllocationIds.length} expired allocations as consumed`);
+          // Refresh the page to reflect the changes
           setTimeout(() => {
             window.location.reload();
           }, 1000);

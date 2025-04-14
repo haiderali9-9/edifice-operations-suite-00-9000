@@ -1,4 +1,5 @@
 
+
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -95,6 +96,11 @@ export interface ResourceAllocation {
   resource_id: string;
   project_id: string;
   quantity: number;
+  created_at?: string; // Added this field to match what is used in the code
+  consumed?: boolean; // Added this field to match what is used in the code
+  projects?: {
+    name: string;
+  };
 }
 
 export interface Expense {
