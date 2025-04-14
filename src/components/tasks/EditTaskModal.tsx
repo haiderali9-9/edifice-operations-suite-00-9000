@@ -94,7 +94,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           assignmentId: r.id,
           hours: r.hours || undefined,
           days: r.days || undefined,
-          quantity: r.quantity
+          quantity: r.quantity || 1
         })));
       }
       
@@ -318,7 +318,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
             resource_id: resource.id,
             hours: resource.hours,
             days: resource.days,
-            quantity: resource.quantity
+            quantity: resource.quantity || 1
           }));
           
           const { error: addError } = await supabase
@@ -336,7 +336,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
             .update({
               hours: resource.hours,
               days: resource.days,
-              quantity: resource.quantity
+              quantity: resource.quantity || 1
             })
             .eq('id', resource.assignmentId);
             

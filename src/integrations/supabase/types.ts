@@ -388,6 +388,7 @@ export type Database = {
           days: number | null
           hours: number | null
           id: string
+          quantity: number | null
           resource_id: string
           task_id: string
         }
@@ -396,6 +397,7 @@ export type Database = {
           days?: number | null
           hours?: number | null
           id?: string
+          quantity?: number | null
           resource_id: string
           task_id: string
         }
@@ -404,6 +406,7 @@ export type Database = {
           days?: number | null
           hours?: number | null
           id?: string
+          quantity?: number | null
           resource_id?: string
           task_id?: string
         }

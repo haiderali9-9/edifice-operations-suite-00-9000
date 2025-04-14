@@ -102,6 +102,9 @@ export interface Database {
           cost: number
           status: 'Available' | 'Low Stock' | 'Out of Stock'
           created_at: string
+          returnable: boolean
+          hour_rate?: number
+          day_rate?: number
         }
         Insert: {
           id?: string
@@ -112,6 +115,9 @@ export interface Database {
           cost: number
           status?: 'Available' | 'Low Stock' | 'Out of Stock'
           created_at?: string
+          returnable?: boolean
+          hour_rate?: number
+          day_rate?: number
         }
         Update: {
           id?: string
@@ -122,6 +128,9 @@ export interface Database {
           cost?: number
           status?: 'Available' | 'Low Stock' | 'Out of Stock'
           created_at?: string
+          returnable?: boolean
+          hour_rate?: number
+          day_rate?: number
         }
       }
       resource_allocations: {
@@ -131,6 +140,9 @@ export interface Database {
           project_id: string
           quantity: number
           created_at: string
+          days?: number
+          hours?: number
+          consumed?: boolean
         }
         Insert: {
           id?: string
@@ -138,6 +150,9 @@ export interface Database {
           project_id: string
           quantity: number
           created_at?: string
+          days?: number
+          hours?: number
+          consumed?: boolean
         }
         Update: {
           id?: string
@@ -145,6 +160,9 @@ export interface Database {
           project_id?: string
           quantity?: number
           created_at?: string
+          days?: number
+          hours?: number
+          consumed?: boolean
         }
       }
       team_members: {
@@ -167,6 +185,35 @@ export interface Database {
           project_id?: string
           user_id?: string
           role?: string
+          created_at?: string
+        }
+      }
+      task_resources: {
+        Row: {
+          id: string
+          task_id: string
+          resource_id: string
+          hours?: number
+          days?: number
+          quantity?: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          resource_id: string
+          hours?: number
+          days?: number
+          quantity?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          resource_id?: string
+          hours?: number
+          days?: number
+          quantity?: number
           created_at?: string
         }
       }
