@@ -1,4 +1,3 @@
-
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -111,6 +110,8 @@ export interface ResourceAllocation {
   projects?: {
     name: string;
   };
+  days?: number; // Added field for days allocation
+  hours?: number; // Added field for hours allocation
 }
 
 export interface Expense {

@@ -189,6 +189,7 @@ const Schedule = () => {
     queryFn: async () => {
       const today = new Date().toISOString();
       
+      // Fetch resources and their allocations with the duration information
       const { data: resources, error: resourcesError } = await supabase
         .from('resources')
         .select(`
@@ -200,6 +201,8 @@ const Schedule = () => {
             quantity,
             created_at,
             consumed,
+            days,
+            hours,
             projects:project_id(name)
           )
         `)
@@ -211,6 +214,7 @@ const Schedule = () => {
         return [];
       }
       
+      // Process resources to create a weekly allocation schedule
       const processedResources = resources
         .filter(resource => resource.resource_allocations && resource.resource_allocations.length > 0)
         .map(resource => {
@@ -220,17 +224,25 @@ const Schedule = () => {
           
           if (activeAllocations.length === 0) return null;
           
+          // Map allocations to days of the week
+          // Use custom days/hours if specified, otherwise use default distribution
           const dayAllocation = [1, 2, 3, 4, 5].map(day => {
             const allocation = activeAllocations[day % activeAllocations.length];
             
             if (!allocation) return null;
+            
+            const hours = allocation.hours || 
+                         (allocation.days ? Math.min(allocation.days * 8, 8) : 8);
             
             return {
               id: allocation.id,
               project: allocation.projects?.name || 'Unknown',
               project_id: allocation.project_id,
               day,
-              hours: 8,
+              hours,
+              // Include duration information
+              days: allocation.days,
+              hours_allocation: allocation.hours,
               // Add the created_at property from the allocation
               created_at: allocation.created_at
             };
@@ -463,7 +475,11 @@ const Schedule = () => {
                           <td key={day} className="py-3 text-center">
                             {allocation ? (
                               <div className="inline-block px-2 py-1 rounded bg-blue-100 text-blue-800 text-xs">
-                                {allocation.project.split(' ')[0]} ({allocation.hours}h)
+                                <div>{allocation.project.split(' ')[0]}</div>
+                                <div className="text-xs mt-1">
+                                  {allocation.hours}h
+                                  {allocation.days ? ` (${allocation.days}d total)` : ''}
+                                </div>
                               </div>
                             ) : (
                               <span className="text-gray-400">—</span>
@@ -485,6 +501,7 @@ const Schedule = () => {
             </div>
             <p className="text-xs text-gray-500 mt-4">
               Note: Returnable resources are automatically marked as returned after 7 days.
+              Resources with specified durations are allocated according to those values.
             </p>
           </CardContent>
         </Card>

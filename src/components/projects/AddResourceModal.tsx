@@ -33,6 +33,7 @@ import { useForm } from "react-hook-form";
 import { Resource } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AddResourceModalProps {
   projectId: string;
@@ -50,6 +51,7 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
   const { toast } = useToast();
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [availableQuantity, setAvailableQuantity] = useState(0);
+  const [durationType, setDurationType] = useState<"days" | "hours">("days");
 
   const FormSchema = z.object({
     resourceId: z.string({
@@ -59,6 +61,14 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
       .number()
       .positive("Quantity must be positive")
       .max(availableQuantity, `Maximum available quantity is ${availableQuantity}`),
+    hours: z.coerce
+      .number()
+      .min(0, "Hours must be 0 or greater")
+      .optional(),
+    days: z.coerce
+      .number()
+      .min(0, "Days must be 0 or greater")
+      .optional(),
   });
 
   const form = useForm<z.infer<typeof FormSchema>>({
@@ -66,6 +76,8 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
     defaultValues: {
       resourceId: "",
       quantity: 1,
+      hours: 0,
+      days: 0,
     },
   });
 
@@ -151,6 +163,9 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
         setSelectedResource(resource);
         setAvailableQuantity(resource.available || resource.quantity);
         form.setValue("quantity", 1);
+        // Reset duration fields
+        form.setValue("days", 0);
+        form.setValue("hours", 0);
       }
     }
   }, [watchResourceId, resources, form]);
@@ -182,6 +197,9 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
         resource_id: data.resourceId,
         quantity: data.quantity,
         consumed: false,
+        // Include duration information for returnable resources
+        days: selectedResource.returnable && durationType === "days" ? data.days : null,
+        hours: selectedResource.returnable && durationType === "hours" ? data.hours : null,
       });
 
       if (error) throw error;
@@ -292,6 +310,72 @@ const AddResourceModal: React.FC<AddResourceModalProps> = ({
                   </FormItem>
                 )}
               />
+
+              {selectedResource && selectedResource.returnable && (
+                <>
+                  <div className="border-t pt-4">
+                    <FormLabel className="block mb-2">Duration Allocation</FormLabel>
+                    <Tabs value={durationType} onValueChange={(value) => setDurationType(value as "days" | "hours")}>
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="days">Days</TabsTrigger>
+                        <TabsTrigger value="hours">Hours</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="days">
+                        <FormField
+                          control={form.control}
+                          name="days"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Number of Days</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    form.setValue("hours", 0); // Reset hours when days are set
+                                  }}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                How many days will this resource be used
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TabsContent>
+                      <TabsContent value="hours">
+                        <FormField
+                          control={form.control}
+                          name="hours"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Number of Hours</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={0}
+                                  {...field}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    form.setValue("days", 0); // Reset days when hours are set
+                                  }}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                How many hours will this resource be used
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                </>
+              )}
 
               <div className="flex justify-end gap-4 pt-4">
                 <Button 

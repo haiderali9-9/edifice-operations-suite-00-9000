@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Table,
@@ -20,7 +21,9 @@ import {
   ArrowLeftRight,
   Trash2,
   CheckCircle,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +56,8 @@ interface ProjectResource {
   quantity: number;
   resource: Resource;
   consumed?: boolean;
+  hours?: number | null;
+  days?: number | null;
 }
 
 const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
@@ -70,7 +75,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
       
       const { data: allocations, error: allocationsError } = await supabase
         .from('resource_allocations')
-        .select('id, quantity, resource_id, consumed')
+        .select('id, quantity, resource_id, consumed, hours, days')
         .eq('project_id', projectId);
       
       if (allocationsError) throw allocationsError;
@@ -91,6 +96,8 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
             id: allocation.id,
             quantity: allocation.quantity,
             consumed: allocation.consumed || false,
+            hours: allocation.hours,
+            days: allocation.days,
             resource: {
               ...matchingResource,
               returnable: matchingResource.returnable || false
@@ -165,6 +172,33 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
       style: "currency",
       currency: "USD",
     }).format(value);
+  };
+
+  const getDurationDisplay = (resource: ProjectResource) => {
+    if (!resource.resource.returnable) return null;
+    
+    if (resource.days && resource.days > 0) {
+      return (
+        <div className="flex items-center text-xs text-gray-600 mt-1">
+          <Calendar className="h-3 w-3 mr-1" />
+          {resource.days} {resource.days === 1 ? 'day' : 'days'}
+        </div>
+      );
+    } else if (resource.hours && resource.hours > 0) {
+      return (
+        <div className="flex items-center text-xs text-gray-600 mt-1">
+          <Clock className="h-3 w-3 mr-1" />
+          {resource.hours} {resource.hours === 1 ? 'hour' : 'hours'}
+        </div>
+      );
+    } else {
+      return (
+        <div className="flex items-center text-xs text-gray-400 mt-1">
+          <Clock className="h-3 w-3 mr-1" />
+          No duration set
+        </div>
+      );
+    }
   };
 
   const handleRemoveResource = async (resourceId: string) => {
@@ -289,6 +323,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
               <TableHead>Category</TableHead>
               <TableHead>Quantity</TableHead>
               <TableHead>Unit Cost</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
@@ -321,6 +356,9 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                   </TableCell>
                   <TableCell>{projectResource.quantity} {projectResource.resource.unit}</TableCell>
                   <TableCell>{formatCurrency(projectResource.resource.cost)}</TableCell>
+                  <TableCell>
+                    {getDurationDisplay(projectResource)}
+                  </TableCell>
                   <TableCell>{getStatusBadge(projectResource.resource.status)}</TableCell>
                   <TableCell>
                     <div className="flex space-x-1">
@@ -365,7 +403,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                <TableCell colSpan={8} className="text-center py-10 text-gray-500">
                   No resources assigned to this project yet.
                 </TableCell>
               </TableRow>
