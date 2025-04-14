@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,27 +188,15 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
 
     try {
-      // First, get the current resource to ensure we have the latest data
-      const { data: currentResource, error: fetchError } = await supabase
-        .from("resources")
-        .select("quantity")
-        .eq("id", allocation.resource.id)
-        .single();
-      
-      if (fetchError) throw fetchError;
-      
-      // Calculate the new quantity, ensuring it's not negative
-      const newQuantity = Math.max(0, currentResource.quantity - allocation.quantity);
-      
-      // Update the resource's quantity
       const { error: resourceError } = await supabase
         .from("resources")
-        .update({ quantity: newQuantity })
+        .update({ 
+          quantity: Math.max(0, allocation.resource.quantity - allocation.quantity) 
+        })
         .eq("id", allocation.resource.id);
       
       if (resourceError) throw resourceError;
       
-      // Mark the allocation as consumed
       const { error: allocationError } = await supabase
         .from("resource_allocations")
         .update({ consumed: true })
