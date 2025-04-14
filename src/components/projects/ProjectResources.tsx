@@ -16,7 +16,7 @@ import { Plus, RefreshCw, Trash } from "lucide-react";
 import { Resource, ResourceAllocation } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import AddResourceModal from "./AddResourceModal";
+import AddResourceModal from "../resources/AddResourceModal";
 
 const ProjectResources = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -38,6 +38,7 @@ const ProjectResources = () => {
           days,
           consumed,
           resource_id,
+          project_id,
           resource:resources(
             id, 
             name, 
@@ -254,13 +255,11 @@ const ProjectResources = () => {
         </Table>
       </CardContent>
 
-      {showAddModal && (
-        <AddResourceModal
-          projectId={projectId || ""}
-          onResourceAdded={handleResourceAdded}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
+      <AddResourceModal
+        open={showAddModal}
+        onOpenChange={setShowAddModal}
+        onResourceAdded={handleResourceAdded}
+      />
     </Card>
   );
 };

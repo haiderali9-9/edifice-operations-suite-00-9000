@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Resource } from "@/types";
-import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2, Pencil, RotateCcw } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2, Pencil, RotateCcw, Clock, CalendarDays, DollarSign } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,11 +28,13 @@ import { toast } from "sonner";
 import ResourceStatus from "@/components/dashboard/ResourceStatus";
 import AddResourceModal from "@/components/resources/AddResourceModal";
 import EditResourceModal from "@/components/resources/EditResourceModal";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Resources = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [priceFilter, setPriceFilter] = useState<string | null>(null);
   const [isAddResourceModalOpen, setIsAddResourceModalOpen] = useState(false);
   const [isEditResourceModalOpen, setIsEditResourceModalOpen] = useState(false);
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
@@ -70,6 +72,8 @@ const Resources = () => {
         cost: resource.cost,
         status: resource.status,
         returnable: resource.returnable || false,
+        hour_rate: resource.hour_rate,
+        day_rate: resource.day_rate,
         resource_allocations: allocationsData
           .filter(allocation => allocation.resource_id === resource.id)
           .map(allocation => ({
@@ -101,8 +105,13 @@ const Resources = () => {
           ? (categoryFilter === "Returnable" && resource.returnable) || 
             (categoryFilter === "Consumable" && !resource.returnable)
           : true;
+        const matchesPriceType = priceFilter 
+          ? (priceFilter === "Hourly" && resource.hour_rate) ||
+            (priceFilter === "Daily" && resource.day_rate) ||
+            (priceFilter === "Fixed" && (!resource.hour_rate && !resource.day_rate))
+          : true;
 
-        return matchesSearch && matchesType && matchesCategory;
+        return matchesSearch && matchesType && matchesCategory && matchesPriceType;
       })
     : [];
 
@@ -123,6 +132,31 @@ const Resources = () => {
     return returnable ? 
       <Badge variant="outline" className="bg-purple-100 text-purple-800">Returnable</Badge> :
       <Badge variant="outline" className="bg-teal-100 text-teal-800">Consumable</Badge>;
+  };
+
+  const getPricingBadge = (resource: Resource) => {
+    if (resource.hour_rate) {
+      return (
+        <Badge variant="outline" className="bg-blue-100 text-blue-800 flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          ${resource.hour_rate}/hr
+        </Badge>
+      );
+    } else if (resource.day_rate) {
+      return (
+        <Badge variant="outline" className="bg-indigo-100 text-indigo-800 flex items-center gap-1">
+          <CalendarDays className="h-3 w-3" />
+          ${resource.day_rate}/day
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="bg-gray-100 text-gray-800 flex items-center gap-1">
+          <DollarSign className="h-3 w-3" />
+          Fixed
+        </Badge>
+      );
+    }
   };
 
   const formatCurrency = (value: number) => {
@@ -315,6 +349,28 @@ const Resources = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  {priceFilter ? priceFilter : "All Pricing"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setPriceFilter(null)}>
+                  All Pricing Types
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPriceFilter("Hourly")}>
+                  <Clock className="h-4 w-4 mr-2" /> Hourly Rate
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPriceFilter("Daily")}>
+                  <CalendarDays className="h-4 w-4 mr-2" /> Daily Rate
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setPriceFilter("Fixed")}>
+                  <DollarSign className="h-4 w-4 mr-2" /> Fixed Price
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
@@ -334,9 +390,10 @@ const Resources = () => {
                     <TableHead>Resource Name</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Pricing</TableHead>
                     <TableHead>Quantity</TableHead>
                     <TableHead>Unit</TableHead>
-                    <TableHead>Cost</TableHead>
+                    <TableHead>Base Cost</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[120px]">Actions</TableHead>
                   </TableRow>
@@ -344,7 +401,7 @@ const Resources = () => {
                 <TableBody>
                   {resourcesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-24 text-center">
+                      <TableCell colSpan={9} className="h-24 text-center">
                         <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                         <p className="text-sm text-gray-500 mt-2">Loading resources...</p>
                       </TableCell>
@@ -360,6 +417,7 @@ const Resources = () => {
                           </div>
                         </TableCell>
                         <TableCell>{getResourceCategoryBadge(resource.returnable)}</TableCell>
+                        <TableCell>{getPricingBadge(resource)}</TableCell>
                         <TableCell>{resource.quantity}</TableCell>
                         <TableCell>{resource.unit}</TableCell>
                         <TableCell>{formatCurrency(resource.cost)} / {resource.unit}</TableCell>
@@ -393,7 +451,7 @@ const Resources = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                      <TableCell colSpan={9} className="text-center py-10 text-gray-500">
                         No resources found matching your filters
                       </TableCell>
                     </TableRow>
