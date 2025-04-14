@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -188,28 +189,43 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
 
     try {
-      const { error: resourceError } = await supabase
+      // First, fetch the current resource to ensure we have the latest quantity
+      const { data: resourceData, error: fetchError } = await supabase
         .from("resources")
-        .update({ 
-          quantity: Math.max(0, allocation.resource.quantity - allocation.quantity) 
-        })
-        .eq("id", allocation.resource.id);
+        .select("quantity")
+        .eq("id", allocation.resource.id)
+        .single();
       
-      if (resourceError) throw resourceError;
+      if (fetchError) throw fetchError;
       
-      const { error: allocationError } = await supabase
-        .from("resource_allocations")
-        .update({ consumed: true })
-        .eq("id", allocation.id);
+      if (resourceData && typeof resourceData.quantity === 'number') {
+        // Update the resource quantity - subtract directly from total
+        const { error: resourceError } = await supabase
+          .from("resources")
+          .update({ 
+            quantity: Math.max(0, resourceData.quantity - allocation.quantity)
+          })
+          .eq("id", allocation.resource.id);
+        
+        if (resourceError) throw resourceError;
+        
+        // Mark the allocation as consumed
+        const { error: allocationError } = await supabase
+          .from("resource_allocations")
+          .update({ consumed: true })
+          .eq("id", allocation.id);
 
-      if (allocationError) throw allocationError;
-      
-      toast({
-        title: "Resource Consumed",
-        description: `${allocation.resource.name} has been consumed and removed from inventory.`,
-      });
-      
-      fetchResources();
+        if (allocationError) throw allocationError;
+        
+        toast({
+          title: "Resource Consumed",
+          description: `${allocation.resource.name} has been consumed and removed from inventory.`,
+        });
+        
+        fetchResources();
+      } else {
+        throw new Error("Invalid resource quantity");
+      }
     } catch (error) {
       console.error("Error consuming resource:", error);
       toast({
