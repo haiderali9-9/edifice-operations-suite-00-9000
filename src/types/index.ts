@@ -1,4 +1,3 @@
-
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -27,6 +26,7 @@ export interface TaskResource {
   resource_id: string;
   hours?: number;
   days?: number;
+  quantity?: number;
   resource?: Resource;
 }
 

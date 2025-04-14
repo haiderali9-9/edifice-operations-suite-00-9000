@@ -23,7 +23,8 @@ import {
   CheckCircle,
   RefreshCw,
   Clock,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +47,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface ProjectResourcesProps {
   projectId: string;
@@ -58,6 +60,13 @@ interface ProjectResource {
   consumed?: boolean;
   hours?: number | null;
   days?: number | null;
+  taskAllocations?: {
+    taskId: string;
+    taskName: string;
+    hours?: number | null;
+    days?: number | null;
+    quantity?: number | null;
+  }[];
 }
 
 const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
@@ -68,6 +77,8 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
   const [deleteResourceId, setDeleteResourceId] = useState<string | null>(null);
   const [consumeResourceId, setConsumeResourceId] = useState<string | null>(null);
   const [resetResourceId, setResetResourceId] = useState<string | null>(null);
+  const [showResourceDetailsId, setShowResourceDetailsId] = useState<string | null>(null);
+  const [selectedResource, setSelectedResource] = useState<ProjectResource | null>(null);
 
   const fetchProjectResources = async () => {
     try {
@@ -90,20 +101,55 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
         
         if (resourcesError) throw resourcesError;
         
-        const formattedResources: ProjectResource[] = allocations.map(allocation => {
+        // Fetch task resource allocations for each resource
+        const formattedResources: ProjectResource[] = [];
+        
+        for (const allocation of allocations) {
           const matchingResource = resources.find(resource => resource.id === allocation.resource_id);
-          return {
-            id: allocation.id,
-            quantity: allocation.quantity,
-            consumed: allocation.consumed || false,
-            hours: allocation.hours,
-            days: allocation.days,
-            resource: {
-              ...matchingResource,
-              returnable: matchingResource.returnable || false
-            } as Resource
-          };
-        });
+          
+          if (matchingResource) {
+            // Fetch task allocations for this resource
+            const { data: taskAllocations, error: taskAllocationsError } = await supabase
+              .from('task_resources')
+              .select(`
+                id, 
+                hours, 
+                days, 
+                quantity,
+                tasks:task_id (
+                  id,
+                  name
+                )
+              `)
+              .eq('resource_id', allocation.resource_id);
+              
+            if (taskAllocationsError) {
+              console.error("Error fetching task allocations:", taskAllocationsError);
+            }
+            
+            // Format task allocations
+            const formattedTaskAllocations = taskAllocations ? taskAllocations.map(ta => ({
+              taskId: ta.tasks.id,
+              taskName: ta.tasks.name,
+              hours: ta.hours,
+              days: ta.days,
+              quantity: ta.quantity
+            })) : [];
+            
+            formattedResources.push({
+              id: allocation.id,
+              quantity: allocation.quantity,
+              consumed: allocation.consumed || false,
+              hours: allocation.hours,
+              days: allocation.days,
+              resource: {
+                ...matchingResource,
+                returnable: matchingResource.returnable || false
+              } as Resource,
+              taskAllocations: formattedTaskAllocations
+            });
+          }
+        }
         
         setProjectResources(formattedResources);
       } else {
@@ -300,6 +346,11 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
     }
   };
 
+  const handleViewResourceDetails = (resource: ProjectResource) => {
+    setSelectedResource(resource);
+    setShowResourceDetailsId(resource.id);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
@@ -325,7 +376,7 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
               <TableHead>Unit Cost</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]"></TableHead>
+              <TableHead className="w-[140px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -344,6 +395,11 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                         {projectResource.resource.name}
                       </span>
                     </div>
+                    {projectResource.taskAllocations && projectResource.taskAllocations.length > 0 && (
+                      <div className="text-xs text-blue-600 mt-1 cursor-pointer hover:underline" onClick={() => handleViewResourceDetails(projectResource)}>
+                        Used in {projectResource.taskAllocations.length} {projectResource.taskAllocations.length === 1 ? 'task' : 'tasks'}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center">
@@ -387,6 +443,16 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
                           </Button>
                         </>
                       ) : null}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-blue-600"
+                        onClick={() => handleViewResourceDetails(projectResource)}
+                        title="View Details"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span className="sr-only">Details</span>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -476,6 +542,64 @@ const ProjectResources: React.FC<ProjectResourcesProps> = ({ projectId }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Resource Details Dialog */}
+      <Dialog open={!!showResourceDetailsId} onOpenChange={(open) => !open && setShowResourceDetailsId(null)}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Resource Allocation Details</DialogTitle>
+          </DialogHeader>
+          {selectedResource && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-medium">{selectedResource.resource.name}</h3>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-gray-600">{selectedResource.resource.type}</span>
+                    {getResourceTypeTag(selectedResource.resource.returnable)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-right text-gray-600">Available: {selectedResource.quantity} {selectedResource.resource.unit}</div>
+                  {selectedResource.resource.returnable && (
+                    <div className="text-right text-gray-600 text-sm mt-1">
+                      {selectedResource.hours ? `${selectedResource.hours} hours` : selectedResource.days ? `${selectedResource.days} days` : 'No duration set'}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Task Allocations</h4>
+                {selectedResource.taskAllocations && selectedResource.taskAllocations.length > 0 ? (
+                  <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    {selectedResource.taskAllocations.map((allocation, index) => (
+                      <div key={index} className="p-3 border rounded-md">
+                        <div className="font-medium">{allocation.taskName}</div>
+                        <div className="flex justify-between mt-1 text-sm text-gray-600">
+                          {selectedResource.resource.returnable ? (
+                            <div>
+                              {allocation.hours ? `${allocation.hours} hours` : allocation.days ? `${allocation.days} days` : 'No duration set'}
+                            </div>
+                          ) : (
+                            <div>
+                              {allocation.quantity ? `${allocation.quantity} ${selectedResource.resource.unit}` : `Quantity not specified`}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-center py-4">
+                    This resource is not allocated to any tasks
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
