@@ -217,6 +217,8 @@ export type Database = {
         Row: {
           consumed: boolean | null
           created_at: string | null
+          days: number | null
+          hours: number | null
           id: string
           project_id: string | null
           quantity: number
@@ -225,6 +227,8 @@ export type Database = {
         Insert: {
           consumed?: boolean | null
           created_at?: string | null
+          days?: number | null
+          hours?: number | null
           id?: string
           project_id?: string | null
           quantity: number
@@ -233,6 +237,8 @@ export type Database = {
         Update: {
           consumed?: boolean | null
           created_at?: string | null
+          days?: number | null
+          hours?: number | null
           id?: string
           project_id?: string | null
           quantity?: number
