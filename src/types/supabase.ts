@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -24,6 +23,7 @@ export interface Database {
           completion: number
           manager_id: string
           created_at: string
+          resources_cost: number
         }
         Insert: {
           id?: string
@@ -38,6 +38,7 @@ export interface Database {
           completion?: number
           manager_id: string
           created_at?: string
+          resources_cost?: number
         }
         Update: {
           id?: string
@@ -52,6 +53,7 @@ export interface Database {
           completion?: number
           manager_id?: string
           created_at?: string
+          resources_cost?: number
         }
       }
       profiles: {
@@ -215,6 +217,82 @@ export interface Database {
           days?: number
           quantity?: number
           created_at?: string
+        }
+      }
+      financial_transactions: {
+        Row: {
+          id: string
+          project_id: string | null
+          type: 'income' | 'expense'
+          amount: number
+          description: string | null
+          category: string | null
+          date: string
+          created_at: string | null
+          created_by: string | null
+        }
+        Insert: {
+          id?: string
+          project_id?: string | null
+          type: 'income' | 'expense'
+          amount: number
+          description?: string | null
+          category?: string | null
+          date?: string
+          created_at?: string | null
+          created_by?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string | null
+          type?: 'income' | 'expense'
+          amount?: number
+          description?: string | null
+          category?: string | null
+          date?: string
+          created_at?: string | null
+          created_by?: string | null
+        }
+      }
+      invoices: {
+        Row: {
+          id: string
+          number: string
+          project_id: string | null
+          client: string
+          amount: number
+          issue_date: string
+          due_date: string
+          status: 'draft' | 'sent' | 'paid' | 'overdue'
+          created_at: string | null
+          created_by: string | null
+          notes: string | null
+        }
+        Insert: {
+          id?: string
+          number: string
+          project_id?: string | null
+          client: string
+          amount: number
+          issue_date: string
+          due_date: string
+          status: 'draft' | 'sent' | 'paid' | 'overdue'
+          created_at?: string | null
+          created_by?: string | null
+          notes?: string | null
+        }
+        Update: {
+          id?: string
+          number?: string
+          project_id?: string | null
+          client?: string
+          amount?: number
+          issue_date?: string
+          due_date?: string
+          status?: 'draft' | 'sent' | 'paid' | 'overdue'
+          created_at?: string | null
+          created_by?: string | null
+          notes?: string | null
         }
       }
     }

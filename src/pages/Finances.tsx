@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,42 +17,129 @@ import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import InvoiceForm from "@/components/finances/InvoiceForm";
 import InvoiceList, { Invoice } from "@/components/finances/InvoiceList";
+import { supabase } from "@/lib/supabase";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+interface Project {
+  id: string;
+  name: string;
+  budget: number;
+  resources_cost: number;
+}
+
+interface Transaction {
+  id: string;
+  date: string;
+  description: string;
+  project: string;
+  amount: number;
+  type: 'income' | 'expense';
+  project_id?: string;
+}
 
 const Finances = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
-  const [invoices, setInvoices] = useState<Invoice[]>([
-    {
-      id: "1",
-      number: "INV-230415-0001",
-      client: "Acme Development Corp",
-      project: "Skyline Tower",
-      amount: 25000,
-      issueDate: "2025-04-01",
-      dueDate: "2025-04-30",
-      status: "sent"
-    },
-    {
-      id: "2",
-      number: "INV-230405-0002",
-      client: "Coastal Living Group",
-      project: "Oceanview Residences",
-      amount: 18500,
-      issueDate: "2025-04-05",
-      dueDate: "2025-05-05",
-      status: "draft"
-    },
-    {
-      id: "3",
-      number: "INV-230320-0003",
-      client: "Metropolitan Builders Inc",
-      project: "Central Business Hub",
-      amount: 42000,
-      issueDate: "2025-03-20",
-      dueDate: "2025-04-19",
-      status: "paid"
+  
+  // Fetch projects data
+  const { data: projects, isLoading: projectsLoading } = useQuery({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, budget, resources_cost, completion');
+      
+      if (error) throw error;
+      return data || [];
     }
-  ]);
+  });
+  
+  // Fetch financial transactions
+  const { data: transactions, isLoading: transactionsLoading } = useQuery({
+    queryKey: ['financial_transactions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('financial_transactions')
+        .select(`
+          id,
+          type,
+          amount,
+          description,
+          date,
+          projects (id, name)
+        `)
+        .order('date', { ascending: false })
+        .limit(10);
+      
+      if (error) throw error;
+      
+      return (data || []).map(trans => ({
+        id: trans.id,
+        date: trans.date,
+        description: trans.description || '',
+        project: trans.projects?.name || 'General',
+        project_id: trans.projects?.id,
+        amount: trans.amount,
+        type: trans.type
+      }));
+    }
+  });
+  
+  // Fetch invoices
+  const { data: invoices, isLoading: invoicesLoading } = useQuery({
+    queryKey: ['invoices'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select();
+      
+      if (error) throw error;
+      
+      return (data || []).map(invoice => ({
+        id: invoice.id,
+        number: invoice.number,
+        client: invoice.client,
+        project: invoice.project_id || '',
+        amount: invoice.amount,
+        issueDate: invoice.issue_date,
+        dueDate: invoice.due_date,
+        status: invoice.status
+      } as Invoice));
+    }
+  });
+
+  // Invoice status update mutation
+  const updateInvoiceStatus = useMutation({
+    mutationFn: async ({ invoiceId, newStatus }: { invoiceId: string, newStatus: Invoice['status'] }) => {
+      const { error } = await supabase
+        .from('invoices')
+        .update({ status: newStatus })
+        .eq('id', invoiceId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    }
+  });
+  
+  const handleStatusChange = (invoiceId: string, newStatus: Invoice['status']) => {
+    updateInvoiceStatus.mutate({ invoiceId, newStatus });
+  };
+  
+  const handleInvoiceCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    setActiveTab("invoices");
+  };
+  
+  const handleAddTransaction = () => {
+    // Will be implemented with a form modal
+    toast({
+      title: "Add Transaction",
+      description: "Transaction form will appear here",
+    });
+  };
   
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -60,42 +147,29 @@ const Finances = () => {
       currency: "USD",
     }).format(amount);
   };
-
-  const handleAddTransaction = () => {
-    toast({
-      title: "Add Transaction",
-      description: "Transaction form will appear here",
-    });
-  };
-
-  const handleStatusChange = (invoiceId: string, newStatus: Invoice['status']) => {
-    setInvoices(prev => prev.map(invoice => 
-      invoice.id === invoiceId ? { ...invoice, status: newStatus } : invoice
-    ));
-  };
-
-  const handleInvoiceCreated = () => {
-    // In a real app, we would fetch the updated invoices from the API
-    // For now, let's just switch to the invoices tab
-    setActiveTab("invoices");
-  };
-
-  // Mock financial data
-  const projectBudgets = [
-    { id: 1, project: "Skyline Tower", budget: 1200000, spent: 780000, remaining: 420000 },
-    { id: 2, project: "Oceanview Residences", budget: 850000, spent: 320000, remaining: 530000 },
-    { id: 3, project: "Central Business Hub", budget: 1800000, spent: 950000, remaining: 850000 },
-    { id: 4, project: "Riverside Complex", budget: 950000, spent: 580000, remaining: 370000 },
-    { id: 5, project: "Mountain View Condos", budget: 720000, spent: 680000, remaining: 40000 }
-  ];
   
-  const recentTransactions = [
-    { id: 1, date: "2025-04-10", description: "Material Purchase - Concrete", project: "Skyline Tower", amount: 12500, type: "expense" },
-    { id: 2, date: "2025-04-08", description: "Equipment Rental - Crane", project: "Oceanview Residences", amount: 8700, type: "expense" },
-    { id: 3, date: "2025-04-07", description: "Client Payment", project: "Central Business Hub", amount: 45000, type: "income" },
-    { id: 4, date: "2025-04-05", description: "Contractor Payment", project: "Skyline Tower", amount: 18500, type: "expense" },
-    { id: 5, date: "2025-04-03", description: "Client Payment", project: "Riverside Complex", amount: 35000, type: "income" }
-  ];
+  // Calculate total budget
+  const totalBudget = projects?.reduce((sum, project) => sum + (project.budget || 0), 0) || 0;
+  
+  // Calculate total spent
+  const totalSpent = projects?.reduce((sum, project) => sum + (project.resources_cost || 0), 0) || 0;
+  
+  // Calculate remaining budget
+  const totalRemaining = totalBudget - totalSpent;
+  
+  // Calculate total revenue (from income transactions)
+  const totalRevenue = transactions
+    ?.filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0) || 0;
+  
+  // Format project budget data for display
+  const projectBudgets = projects?.map(project => ({
+    id: project.id,
+    project: project.name,
+    budget: project.budget || 0,
+    spent: project.resources_cost || 0,
+    remaining: (project.budget || 0) - (project.resources_cost || 0)
+  })) || [];
   
   return (
     <PageLayout>
@@ -129,7 +203,7 @@ const Finances = () => {
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="h-5 w-5 text-construction-600" />
-                <span className="text-2xl font-bold">{formatCurrency(5520000)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(totalBudget)}</span>
               </div>
             </div>
           </CardContent>
@@ -144,7 +218,7 @@ const Finances = () => {
               </div>
               <div className="flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-orange-600" />
-                <span className="text-2xl font-bold">{formatCurrency(3310000)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(totalSpent)}</span>
               </div>
             </div>
           </CardContent>
@@ -159,7 +233,7 @@ const Finances = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Wallet className="h-5 w-5 text-green-600" />
-                <span className="text-2xl font-bold">{formatCurrency(2210000)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(totalRemaining)}</span>
               </div>
             </div>
           </CardContent>
@@ -174,7 +248,7 @@ const Finances = () => {
               </div>
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-purple-600" />
-                <span className="text-2xl font-bold">{formatCurrency(2850000)}</span>
+                <span className="text-2xl font-bold">{formatCurrency(totalRevenue)}</span>
               </div>
             </div>
           </CardContent>
@@ -195,47 +269,60 @@ const Finances = () => {
               <CardTitle>Project Budgets</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Total Budget</TableHead>
-                    <TableHead>Spent</TableHead>
-                    <TableHead>Remaining</TableHead>
-                    <TableHead>Utilization</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {projectBudgets.map((budget) => {
-                    const utilizationPercentage = Math.round((budget.spent / budget.budget) * 100);
-                    let utilizationColor = "bg-green-500";
-                    if (utilizationPercentage > 90) {
-                      utilizationColor = "bg-red-500";
-                    } else if (utilizationPercentage > 70) {
-                      utilizationColor = "bg-yellow-500";
-                    }
-                    
-                    return (
-                      <TableRow key={budget.id}>
-                        <TableCell className="font-medium">{budget.project}</TableCell>
-                        <TableCell>{formatCurrency(budget.budget)}</TableCell>
-                        <TableCell>{formatCurrency(budget.spent)}</TableCell>
-                        <TableCell>{formatCurrency(budget.remaining)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Progress 
-                              value={utilizationPercentage} 
-                              className="h-2"
-                              indicatorClassName={utilizationColor} 
-                            />
-                            <span className="text-sm">{utilizationPercentage}%</span>
-                          </div>
+              {projectsLoading ? (
+                <div className="flex justify-center py-8">Loading project data...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Total Budget</TableHead>
+                      <TableHead>Spent</TableHead>
+                      <TableHead>Remaining</TableHead>
+                      <TableHead>Utilization</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projectBudgets.length > 0 ? (
+                      projectBudgets.map((budget) => {
+                        const utilizationPercentage = Math.round((budget.spent / budget.budget) * 100) || 0;
+                        let utilizationColor = "bg-green-500";
+                        if (utilizationPercentage > 90) {
+                          utilizationColor = "bg-red-500";
+                        } else if (utilizationPercentage > 70) {
+                          utilizationColor = "bg-yellow-500";
+                        }
+                        
+                        return (
+                          <TableRow key={budget.id}>
+                            <TableCell className="font-medium">{budget.project}</TableCell>
+                            <TableCell>{formatCurrency(budget.budget)}</TableCell>
+                            <TableCell>{formatCurrency(budget.spent)}</TableCell>
+                            <TableCell>{formatCurrency(budget.remaining)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Progress 
+                                  value={utilizationPercentage} 
+                                  className="h-2"
+                                  // @ts-ignore - indicatorClassName is supported
+                                  indicatorClassName={utilizationColor} 
+                                />
+                                <span className="text-sm">{utilizationPercentage}%</span>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-10 text-gray-500">
+                          No project budget data available
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -249,38 +336,50 @@ const Finances = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Project</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Type</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
-                      <TableCell className="font-medium">{transaction.description}</TableCell>
-                      <TableCell>{transaction.project}</TableCell>
-                      <TableCell>{formatCurrency(transaction.amount)}</TableCell>
-                      <TableCell>
-                        {transaction.type === 'income' ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Income
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                            Expense
-                          </span>
-                        )}
-                      </TableCell>
+              {transactionsLoading ? (
+                <div className="flex justify-center py-8">Loading transaction data...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Type</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {transactions && transactions.length > 0 ? (
+                      transactions.map((transaction) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                          <TableCell className="font-medium">{transaction.description}</TableCell>
+                          <TableCell>{transaction.project}</TableCell>
+                          <TableCell>{formatCurrency(transaction.amount)}</TableCell>
+                          <TableCell>
+                            {transaction.type === 'income' ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Income
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                Expense
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-10 text-gray-500">
+                          No transaction data available
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -297,7 +396,9 @@ const Finances = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {invoices.length > 0 ? (
+              {invoicesLoading ? (
+                <div className="flex justify-center py-8">Loading invoice data...</div>
+              ) : invoices && invoices.length > 0 ? (
                 <InvoiceList
                   invoices={invoices}
                   onStatusChange={handleStatusChange}

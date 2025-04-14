@@ -57,6 +57,114 @@ export type Database = {
           },
         ]
       }
+      financial_transactions: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          date: string
+          description: string | null
+          id: string
+          project_id: string | null
+          type: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          project_id?: string | null
+          type: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          date?: string
+          description?: string | null
+          id?: string
+          project_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_transactions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          amount: number
+          client: string
+          created_at: string | null
+          created_by: string | null
+          due_date: string
+          id: string
+          issue_date: string
+          notes: string | null
+          number: string
+          project_id: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          client: string
+          created_at?: string | null
+          created_by?: string | null
+          due_date: string
+          id?: string
+          issue_date: string
+          notes?: string | null
+          number: string
+          project_id?: string | null
+          status: string
+        }
+        Update: {
+          amount?: number
+          client?: string
+          created_at?: string | null
+          created_by?: string | null
+          due_date?: string
+          id?: string
+          issue_date?: string
+          notes?: string | null
+          number?: string
+          project_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       issues: {
         Row: {
           assigned_to: string | null
@@ -172,6 +280,7 @@ export type Database = {
           location: string | null
           manager_id: string | null
           name: string
+          resources_cost: number | null
           start_date: string | null
           status: string | null
         }
@@ -186,6 +295,7 @@ export type Database = {
           location?: string | null
           manager_id?: string | null
           name: string
+          resources_cost?: number | null
           start_date?: string | null
           status?: string | null
         }
@@ -200,6 +310,7 @@ export type Database = {
           location?: string | null
           manager_id?: string | null
           name?: string
+          resources_cost?: number | null
           start_date?: string | null
           status?: string | null
         }
@@ -515,7 +626,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      calculate_project_resource_cost: {
+        Args: { project_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

@@ -96,6 +96,13 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ invoices, onStatusChange }) =
           description: `Invoice ${invoice.number} has been marked as paid`,
         });
         break;
+      case 'mark-overdue':
+        onStatusChange(invoice.id, 'overdue');
+        toast({
+          title: "Invoice marked as overdue",
+          description: `Invoice ${invoice.number} has been marked as overdue`,
+        });
+        break;
       default:
         break;
     }
@@ -154,6 +161,11 @@ const InvoiceList: React.FC<InvoiceListProps> = ({ invoices, onStatusChange }) =
                     {(invoice.status === 'sent' || invoice.status === 'overdue') && (
                       <DropdownMenuItem onClick={() => handleAction('mark-paid', invoice)}>
                         <Check className="h-4 w-4 mr-2" /> Mark as Paid
+                      </DropdownMenuItem>
+                    )}
+                    {invoice.status === 'sent' && (
+                      <DropdownMenuItem onClick={() => handleAction('mark-overdue', invoice)}>
+                        <Clock className="h-4 w-4 mr-2" /> Mark as Overdue
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
