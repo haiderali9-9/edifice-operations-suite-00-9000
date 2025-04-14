@@ -1,13 +1,23 @@
-
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarClock, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarClock, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import EventForm from "@/components/schedule/EventForm";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const Schedule = () => {
   const { toast } = useToast();
@@ -17,6 +27,7 @@ const Schedule = () => {
   const currentYear = currentDate.getFullYear();
 
   const [currentWeek, setCurrentWeek] = useState(getWeekDates(currentDate));
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
 
   function getWeekDates(date: Date) {
     const week = [];
@@ -44,11 +55,9 @@ const Schedule = () => {
   const { data: scheduleItems, isLoading, refetch } = useQuery({
     queryKey: ['schedule-events', currentWeek[0], currentWeek[6]],
     queryFn: async () => {
-      // Get the start and end dates of the current week
       const startDate = currentWeek[0].toISOString().split('T')[0];
       const endDate = currentWeek[6].toISOString().split('T')[0];
       
-      // Fetch events for the current week
       const { data, error } = await supabase
         .from('schedule_events')
         .select(`
@@ -64,7 +73,6 @@ const Schedule = () => {
         throw error;
       }
       
-      // Transform the data to match the expected format
       return data.map(item => ({
         id: item.id,
         title: item.title,
@@ -77,6 +85,35 @@ const Schedule = () => {
       }));
     }
   });
+
+  const handleDeleteEvent = async () => {
+    if (!eventToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from('schedule_events')
+        .delete()
+        .eq('id', eventToDelete);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Event deleted",
+        description: "The event has been removed from the schedule.",
+      });
+      
+      refetch();
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete the event. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setEventToDelete(null);
+    }
+  };
 
   const getScheduleItemsForDate = (date: Date) => {
     if (!scheduleItems) return [];
@@ -114,11 +151,9 @@ const Schedule = () => {
   };
 
   const handleEventCreated = () => {
-    // Refresh the events from the database
     refetch();
   };
   
-  // Fetch upcoming deadlines from Supabase
   const { data: upcomingDeadlines = [] } = useQuery({
     queryKey: ['upcoming-deadlines'],
     queryFn: async () => {
@@ -126,7 +161,6 @@ const Schedule = () => {
       const inTwoWeeks = new Date();
       inTwoWeeks.setDate(today.getDate() + 14); // Look ahead 14 days
       
-      // Use projects table with end_dates approaching
       const { data, error } = await supabase
         .from('projects')
         .select('id, name, end_date')
@@ -149,11 +183,11 @@ const Schedule = () => {
     }
   });
   
-  // Fetch resource allocation data from Supabase
   const { data: resourceAllocations = [] } = useQuery({
-    queryKey: ['resource-allocations'],
+    queryKey: ['resource-allocations-returnable'],
     queryFn: async () => {
-      // Fetch resources with their allocations
+      const today = new Date().toISOString();
+      
       const { data: resources, error: resourcesError } = await supabase
         .from('resources')
         .select(`
@@ -161,11 +195,14 @@ const Schedule = () => {
           name,
           resource_allocations(
             id, 
-            project_id, 
+            project_id,
             quantity,
+            created_at,
+            consumed,
             projects:project_id(name)
           )
         `)
+        .eq('returnable', true)
         .order('name');
         
       if (resourcesError) {
@@ -173,21 +210,27 @@ const Schedule = () => {
         return [];
       }
       
-      // Process the nested data to create the expected format
-      return resources
+      const processedResources = resources
         .filter(resource => resource.resource_allocations && resource.resource_allocations.length > 0)
         .map(resource => {
+          const activeAllocations = resource.resource_allocations?.filter(
+            allocation => !allocation.consumed
+          ) || [];
+          
+          if (activeAllocations.length === 0) return null;
+          
           const dayAllocation = [1, 2, 3, 4, 5].map(day => {
-            // For simplicity, we're distributing allocations across the week
-            // In a real app, you would have more specific allocation data
-            const allocation = resource.resource_allocations && resource.resource_allocations.length > 0 ? 
-              resource.resource_allocations[day % resource.resource_allocations.length] : null;
+            const allocation = activeAllocations[day % activeAllocations.length];
             
-            return allocation ? {
+            if (!allocation) return null;
+            
+            return {
+              id: allocation.id,
               project: allocation.projects?.name || 'Unknown',
+              project_id: allocation.project_id,
               day,
-              hours: 8 // Default to 8 hours per day
-            } : null;
+              hours: 8,
+            };
           }).filter(Boolean);
           
           return {
@@ -195,9 +238,47 @@ const Schedule = () => {
             name: resource.name,
             allocation: dayAllocation
           };
-        });
+        })
+        .filter(Boolean);
+        
+      return processedResources;
     }
   });
+
+  useEffect(() => {
+    const checkReturnableDates = async () => {
+      const returnDate = new Date();
+      returnDate.setDate(returnDate.getDate() - 7);
+      const returnDateStr = returnDate.toISOString();
+      
+      const expiredAllocations = resourceAllocations
+        .flatMap(resource => 
+          resource.allocation.filter(alloc => 
+            new Date(alloc.created_at) < returnDate
+          ).map(alloc => alloc.id)
+        );
+      
+      if (expiredAllocations.length > 0) {
+        const { error } = await supabase
+          .from('resource_allocations')
+          .update({ consumed: true })
+          .in('id', expiredAllocations);
+        
+        if (error) {
+          console.error('Error updating expired allocations:', error);
+        } else {
+          console.log(`Marked ${expiredAllocations.length} expired allocations as consumed`);
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }
+      }
+    };
+    
+    if (resourceAllocations.length > 0) {
+      checkReturnableDates();
+    }
+  }, [resourceAllocations]);
 
   return (
     <PageLayout>
@@ -229,7 +310,6 @@ const Schedule = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
-            {/* Day Headers */}
             {daysOfWeek.map((day, index) => (
               <div key={day} className="text-center p-2 font-medium">
                 <div className="mb-1">{day}</div>
@@ -239,7 +319,6 @@ const Schedule = () => {
               </div>
             ))}
             
-            {/* Schedule Items for each day */}
             {currentWeek.map((date, dateIndex) => (
               <div key={dateIndex} className="min-h-[300px] border rounded-md p-2">
                 {isLoading ? (
@@ -252,22 +331,52 @@ const Schedule = () => {
                     {getScheduleItemsForDate(date).map(item => (
                       <div 
                         key={item.id} 
-                        className={`mb-2 p-2 border rounded ${getItemClass(item.type)} cursor-pointer transition-all hover:shadow`}
-                        onClick={() => {
-                          toast({
-                            title: item.title,
-                            description: `${item.project} - ${formatTime(item.start)} to ${formatTime(item.end)}`,
-                          });
-                        }}
+                        className={`mb-2 p-2 border rounded ${getItemClass(item.type)} relative group cursor-pointer transition-all hover:shadow`}
                       >
-                        <div className="font-medium">{item.title}</div>
-                        <div className="text-xs">{item.project}</div>
-                        <div className="text-xs mt-1">{formatTime(item.start)} - {formatTime(item.end)}</div>
-                        {item.resourceIds && item.resourceIds.length > 0 && (
-                          <div className="text-xs mt-1 text-gray-600">
-                            Resources: {item.resourceIds.length}
+                        <div className="flex justify-between items-start">
+                          <div
+                            onClick={() => {
+                              toast({
+                                title: item.title,
+                                description: `${item.project} - ${formatTime(item.start)} to ${formatTime(item.end)}`,
+                              });
+                            }}
+                            className="flex-1"
+                          >
+                            <div className="font-medium">{item.title}</div>
+                            <div className="text-xs">{item.project}</div>
+                            <div className="text-xs mt-1">{formatTime(item.start)} - {formatTime(item.end)}</div>
+                            {item.resourceIds && item.resourceIds.length > 0 && (
+                              <div className="text-xs mt-1 text-gray-600">
+                                Resources: {item.resourceIds.length}
+                              </div>
+                            )}
                           </div>
-                        )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="opacity-0 group-hover:opacity-100 h-7 w-7 transition-opacity"
+                                onClick={() => setEventToDelete(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{item.title}"? This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteEvent} className="bg-red-500 hover:bg-red-600">Delete</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </div>
                     ))}
                     {getScheduleItemsForDate(date).length === 0 && (
@@ -318,7 +427,7 @@ const Schedule = () => {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Resource Allocation</CardTitle>
+            <CardTitle>Returnable Resource Allocation</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
@@ -356,13 +465,16 @@ const Schedule = () => {
                   {resourceAllocations.length === 0 && (
                     <tr>
                       <td colSpan={6} className="py-6 text-center text-gray-500">
-                        No resource allocations found
+                        No returnable resource allocations found
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+            <p className="text-xs text-gray-500 mt-4">
+              Note: Returnable resources are automatically marked as returned after 7 days.
+            </p>
           </CardContent>
         </Card>
       </div>
