@@ -42,10 +42,13 @@ const availableResources = [
   { name: "Steel", type: "Material" },
 ];
 
-// Predefined list of measurement units
+// Predefined list of measurement units - now including equipment names
 const availableUnits = [
   "kg", "tons", "cubic meters", "pieces", "pallets", 
-  "hours", "days", "meters", "square meters"
+  "hours", "days", "meters", "square meters",
+  // Adding equipment names as units
+  "Brick", "Cement", "Crane", "Drill", "Forklift", 
+  "Helmet", "Ladder", "Lumber", "Steel"
 ];
 
 // Define form schema for resource validation
@@ -100,6 +103,11 @@ const AddResourceForm: React.FC<AddResourceFormProps> = ({ onSuccess, onCancel }
         form.setValue("returnable", true);
       } else {
         form.setValue("returnable", false);
+      }
+      
+      // Auto-set the unit to match the resource name if it's in the available units
+      if (availableUnits.includes(resourceName)) {
+        form.setValue("unit", resourceName);
       }
     }
   };

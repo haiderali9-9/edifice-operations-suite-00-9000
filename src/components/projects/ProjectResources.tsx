@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -259,11 +258,13 @@ const ProjectResources = () => {
         </Table>
       </CardContent>
 
-      <AddResourceModal
-        open={showAddModal}
-        onOpenChange={setShowAddModal}
-        onResourceAdded={handleResourceAdded}
-      />
+      {projectId && ( 
+        <AddResourceModal
+          open={showAddModal}
+          onOpenChange={setShowAddModal}
+          onResourceAdded={handleResourceAdded}
+        />
+      )}
     </Card>
   );
 };
