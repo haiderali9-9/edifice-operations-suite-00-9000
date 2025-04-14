@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -49,7 +48,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [projectTeam, setProjectTeam] = useState<User[]>([]);
-  const [projectResources, setProjectResources] = useState<Resource[]>([]);
+  const [projectResources, setProjectResources] = useState<(Resource & { allocation: { days?: number; hours?: number; quantity: number } })[]>([]);
   
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   const [selectedResources, setSelectedResources] = useState<{
@@ -57,9 +56,9 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     assignmentId?: string;
     hours?: number;
     days?: number;
+    quantity?: number;
   }[]>([]);
   
-  // Fetch task assignments and resources when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchTaskData();
@@ -71,7 +70,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const fetchTaskData = async () => {
     setIsLoading(true);
     try {
-      // Fetch task assignments - using explicit typing
       const { data: assignments, error: assignmentsError } = await supabase
         .from('task_assignments')
         .select('id, user_id')
@@ -79,26 +77,24 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         
       if (assignmentsError) throw assignmentsError;
       
-      // Set selected team members
       if (assignments) {
         setSelectedTeamMembers(assignments.map(a => a.user_id));
       }
       
-      // Fetch task resources - using explicit typing
       const { data: resources, error: resourcesError } = await supabase
         .from('task_resources')
-        .select('id, resource_id, hours, days')
+        .select('id, resource_id, hours, days, quantity')
         .eq('task_id', task.id);
         
       if (resourcesError) throw resourcesError;
       
-      // Set selected resources
       if (resources) {
         setSelectedResources(resources.map(r => ({
           id: r.resource_id,
           assignmentId: r.id,
           hours: r.hours || undefined,
-          days: r.days || undefined
+          days: r.days || undefined,
+          quantity: r.quantity
         })));
       }
       
@@ -112,7 +108,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const fetchProjectTeam = async () => {
     setIsLoading(true);
     try {
-      // Fetch team members for the project
       const { data: teamData, error: teamError } = await supabase
         .from('team_members')
         .select(`
@@ -130,7 +125,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
       if (teamError) throw teamError;
 
-      // Transform the data to match the User interface
       const formattedTeam = teamData.map(member => ({
         id: member.profiles.id,
         name: `${member.profiles.first_name} ${member.profiles.last_name}`,
@@ -150,12 +144,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const fetchProjectResources = async () => {
     setIsLoading(true);
     try {
-      // Fetch allocated resources for the project
       const { data: allocations, error: allocationsError } = await supabase
         .from('resource_allocations')
         .select(`
+          id,
           resource_id,
           quantity,
+          days,
+          hours,
           resources:resource_id (
             id,
             name,
@@ -173,17 +169,20 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       if (allocationsError) throw allocationsError;
 
       if (allocations && allocations.length > 0) {
-        // Transform the data to match the Resource interface with proper type handling
         const formattedResources = allocations
-          .filter(allocation => allocation.resources && allocation.resources.returnable)
+          .filter(allocation => allocation.resources)
           .map(allocation => ({
             ...allocation.resources,
             available: allocation.quantity,
-            // Ensure 'type' is properly typed
+            allocation: {
+              quantity: allocation.quantity,
+              days: allocation.days,
+              hours: allocation.hours
+            },
             type: allocation.resources.type as 'Material' | 'Equipment' | 'Labor'
           }));
 
-        setProjectResources(formattedResources as Resource[]);
+        setProjectResources(formattedResources);
       } else {
         setProjectResources([]);
       }
@@ -214,26 +213,25 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
   };
 
   const handleResourceSelect = (resourceId: string) => {
-    // Check if resource is already selected
     if (selectedResources.some(r => r.id === resourceId)) {
       setSelectedResources(prev => prev.filter(r => r.id !== resourceId));
     } else {
-      // Find the resource to determine if it uses hours or days
       const resource = projectResources.find(r => r.id === resourceId);
       if (resource) {
         setSelectedResources(prev => [
           ...prev,
           { 
             id: resourceId, 
-            hours: resource.type === 'Labor' ? 8 : undefined,
-            days: resource.type !== 'Labor' ? 1 : undefined 
+            hours: resource.type === 'Labor' ? resource.allocation.hours || 8 : undefined,
+            days: resource.type !== 'Labor' && resource.returnable ? resource.allocation.days || 1 : undefined,
+            quantity: resource.allocation.quantity || 1
           }
         ]);
       }
     }
   };
 
-  const updateResourceAllocation = (resourceId: string, type: 'hours' | 'days', value: number) => {
+  const updateResourceAllocation = (resourceId: string, type: 'hours' | 'days' | 'quantity', value: number) => {
     setSelectedResources(prev => 
       prev.map(r => 
         r.id === resourceId 
@@ -248,7 +246,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
     setIsSubmitting(true);
 
     try {
-      // Update task details
       const { error: taskError } = await supabase
         .from("tasks")
         .update({
@@ -263,7 +260,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
       if (taskError) throw taskError;
       
-      // Fetch current assignments to determine what needs to be added/removed
       const { data: currentAssignments, error: assignmentsError } = await supabase
         .from('task_assignments')
         .select('id, user_id')
@@ -272,14 +268,12 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       if (assignmentsError) throw assignmentsError;
       
       if (currentAssignments) {
-        // Determine assignments to add and remove
         const currentUserIds = currentAssignments.map(a => a.user_id);
         const assignmentsToAdd = selectedTeamMembers.filter(id => !currentUserIds.includes(id));
         const assignmentsToRemove = currentAssignments
           .filter(a => !selectedTeamMembers.includes(a.user_id))
           .map(a => a.id);
         
-        // Add new assignments
         if (assignmentsToAdd.length > 0) {
           const newAssignments = assignmentsToAdd.map(userId => ({
             task_id: task.id,
@@ -293,7 +287,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           if (addError) throw addError;
         }
         
-        // Remove old assignments
         if (assignmentsToRemove.length > 0) {
           const { error: removeError } = await supabase
             .from('task_assignments')
@@ -304,7 +297,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
         }
       }
       
-      // Fetch current resource assignments
       const { data: currentResources, error: resourcesError } = await supabase
         .from('task_resources')
         .select('id, resource_id')
@@ -313,7 +305,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
       if (resourcesError) throw resourcesError;
       
       if (currentResources) {
-        // Determine resources to add, update, and remove
         const currentResourceIds = currentResources.map(r => r.resource_id);
         const resourcesToAdd = selectedResources.filter(r => !r.assignmentId && !currentResourceIds.includes(r.id));
         const resourcesToUpdate = selectedResources.filter(r => r.assignmentId);
@@ -321,13 +312,13 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           .filter(r => !selectedResources.some(sr => sr.id === r.resource_id))
           .map(r => r.id);
         
-        // Add new resources
         if (resourcesToAdd.length > 0) {
           const newResources = resourcesToAdd.map(resource => ({
             task_id: task.id,
             resource_id: resource.id,
             hours: resource.hours,
-            days: resource.days
+            days: resource.days,
+            quantity: resource.quantity
           }));
           
           const { error: addError } = await supabase
@@ -337,7 +328,6 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
           if (addError) throw addError;
         }
         
-        // Update existing resources
         for (const resource of resourcesToUpdate) {
           if (!resource.assignmentId) continue;
           
@@ -345,14 +335,14 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
             .from('task_resources')
             .update({
               hours: resource.hours,
-              days: resource.days
+              days: resource.days,
+              quantity: resource.quantity
             })
             .eq('id', resource.assignmentId);
             
           if (updateError) throw updateError;
         }
         
-        // Remove old resources
         if (resourcesToRemove.length > 0) {
           const { error: removeError } = await supabase
             .from('task_resources')
@@ -529,13 +519,16 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                             {resource.name}
                           </label>
                           <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded-full">
-                            {resource.type} • {resource.available} {resource.unit}
+                            {resource.type} • {resource.allocation.quantity} {resource.unit}
+                            {resource.allocation.days ? ` • ${resource.allocation.days} days` : ''}
+                            {resource.allocation.hours ? ` • ${resource.allocation.hours} hours` : ''}
+                            {` • ${resource.returnable ? 'Returnable' : 'Consumable'}`}
                           </span>
                         </div>
                         
                         {selectedResources.some(r => r.id === resource.id) && (
-                          <div className="ml-6 mt-2 flex items-center gap-2">
-                            {resource.type === 'Labor' ? (
+                          <div className="ml-6 mt-2 flex items-center flex-wrap gap-2">
+                            {resource.type === 'Labor' && (
                               <>
                                 <Label htmlFor={`hours-${resource.id}`} className="text-xs whitespace-nowrap">Hours:</Label>
                                 <div className="flex items-center border rounded-md">
@@ -560,7 +553,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                                     value={selectedResources.find(r => r.id === resource.id)?.hours || 0}
                                     onChange={(e) => updateResourceAllocation(resource.id, 'hours', parseInt(e.target.value) || 0)}
                                     min={1}
-                                    max={resource.available}
+                                    max={resource.allocation.hours || resource.available}
                                   />
                                   <Button 
                                     type="button" 
@@ -569,7 +562,8 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                                     className="h-8 w-8"
                                     onClick={() => {
                                       const current = selectedResources.find(r => r.id === resource.id)?.hours || 0;
-                                      if (current < resource.available) {
+                                      const max = resource.allocation.hours || resource.available;
+                                      if (current < max) {
                                         updateResourceAllocation(resource.id, 'hours', current + 1);
                                       }
                                     }}
@@ -578,10 +572,12 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                                   </Button>
                                 </div>
                               </>
-                            ) : (
+                            )}
+                            
+                            {resource.returnable && resource.type !== 'Labor' && (
                               <>
                                 <Label htmlFor={`days-${resource.id}`} className="text-xs whitespace-nowrap">Days:</Label>
-                                <div className="flex items-center border rounded-md">
+                                <div className="flex items-center border rounded-md mr-4">
                                   <Button 
                                     type="button" 
                                     variant="ghost" 
@@ -603,7 +599,7 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                                     value={selectedResources.find(r => r.id === resource.id)?.days || 0}
                                     onChange={(e) => updateResourceAllocation(resource.id, 'days', parseInt(e.target.value) || 0)}
                                     min={1}
-                                    max={resource.available}
+                                    max={resource.allocation.days || resource.available}
                                   />
                                   <Button 
                                     type="button" 
@@ -612,7 +608,8 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                                     className="h-8 w-8"
                                     onClick={() => {
                                       const current = selectedResources.find(r => r.id === resource.id)?.days || 0;
-                                      if (current < resource.available) {
+                                      const max = resource.allocation.days || resource.available;
+                                      if (current < max) {
                                         updateResourceAllocation(resource.id, 'days', current + 1);
                                       }
                                     }}
@@ -622,6 +619,47 @@ const EditTaskModal: React.FC<EditTaskModalProps> = ({
                                 </div>
                               </>
                             )}
+                            
+                            <Label htmlFor={`quantity-${resource.id}`} className="text-xs whitespace-nowrap">Quantity:</Label>
+                            <div className="flex items-center border rounded-md">
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
+                                  if (current > 1) {
+                                    updateResourceAllocation(resource.id, 'quantity', current - 1);
+                                  }
+                                }}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Input
+                                id={`quantity-${resource.id}`}
+                                type="number"
+                                className="w-16 h-8 text-center border-0"
+                                value={selectedResources.find(r => r.id === resource.id)?.quantity || 0}
+                                onChange={(e) => updateResourceAllocation(resource.id, 'quantity', parseInt(e.target.value) || 0)}
+                                min={1}
+                                max={resource.allocation.quantity}
+                              />
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                onClick={() => {
+                                  const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
+                                  if (current < resource.allocation.quantity) {
+                                    updateResourceAllocation(resource.id, 'quantity', current + 1);
+                                  }
+                                }}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>

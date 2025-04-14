@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -49,7 +48,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
   const [activeTab, setActiveTab] = useState("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectTeam, setProjectTeam] = useState<User[]>([]);
-  const [projectResources, setProjectResources] = useState<Resource[]>([]);
+  const [projectResources, setProjectResources] = useState<(Resource & { allocation: { days?: number; hours?: number; quantity: number } })[]>([]);
   const [selectedTeamMembers, setSelectedTeamMembers] = useState<string[]>([]);
   const [selectedResources, setSelectedResources] = useState<{
     id: string;
@@ -108,12 +107,15 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
     setIsLoading(true);
     try {
       console.log("Fetching resources for project:", projectId);
-      // Fetch allocated resources for the project
+      // Fetch allocated resources for the project with allocation details
       const { data: allocations, error: allocationsError } = await supabase
         .from('resource_allocations')
         .select(`
+          id,
           resource_id,
           quantity,
+          days,
+          hours,
           resources:resource_id (
             id,
             name,
@@ -132,14 +134,18 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       
       console.log("Raw allocations data:", allocations);
 
-      // Transform the data to match the Resource interface
-      // Include ALL resources, both returnable and consumable
+      // Transform the data to include allocation details
       const formattedResources = allocations.map(allocation => ({
         ...allocation.resources,
         available: allocation.quantity,
+        allocation: {
+          quantity: allocation.quantity,
+          days: allocation.days,
+          hours: allocation.hours
+        }
       }));
       
-      console.log("Formatted resources:", formattedResources);
+      console.log("Formatted resources with allocation details:", formattedResources);
       setProjectResources(formattedResources);
     } catch (error) {
       console.error("Error fetching project resources:", error);
@@ -176,15 +182,16 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       // Find the resource to determine if it uses hours, days, or quantity
       const resource = projectResources.find(r => r.id === resourceId);
       if (resource) {
+        // Use the allocation details from the project resources
         setSelectedResources(prev => [
           ...prev,
           { 
             id: resourceId,
             // For returnable resources (like equipment and labor)
-            hours: resource.type === 'Labor' ? 8 : undefined,
-            days: resource.type !== 'Labor' && resource.returnable ? 1 : undefined,
-            // For consumable resources
-            quantity: !resource.returnable ? 1 : undefined
+            hours: resource.type === 'Labor' ? resource.allocation.hours || 8 : undefined,
+            days: resource.type !== 'Labor' && resource.returnable ? resource.allocation.days || 1 : undefined,
+            // Use the allocation quantity by default
+            quantity: resource.allocation.quantity || 1
           }
         ]);
       }
@@ -433,12 +440,15 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                             {resource.name}
                           </label>
                           <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded-full">
-                            {resource.type} • {resource.available} {resource.unit} • {resource.returnable ? 'Returnable' : 'Consumable'}
+                            {resource.type} • {resource.allocation.quantity} {resource.unit} 
+                            {resource.allocation.days ? ` • ${resource.allocation.days} days` : ''}
+                            {resource.allocation.hours ? ` • ${resource.allocation.hours} hours` : ''}
+                            {` • ${resource.returnable ? 'Returnable' : 'Consumable'}`}
                           </span>
                         </div>
                         
                         {selectedResources.some(r => r.id === resource.id) && (
-                          <div className="ml-6 mt-2 flex items-center gap-2">
+                          <div className="ml-6 mt-2 flex flex-wrap items-center gap-2">
                             {/* Consumable resources: show quantity only */}
                             {!resource.returnable && (
                               <>
@@ -465,7 +475,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     value={selectedResources.find(r => r.id === resource.id)?.quantity || 0}
                                     onChange={(e) => updateResourceAllocation(resource.id, 'quantity', parseInt(e.target.value) || 0)}
                                     min={1}
-                                    max={resource.available}
+                                    max={resource.allocation.quantity}
                                   />
                                   <Button 
                                     type="button" 
@@ -474,7 +484,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     className="h-8 w-8"
                                     onClick={() => {
                                       const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
-                                      if (current < resource.available) {
+                                      if (current < resource.allocation.quantity) {
                                         updateResourceAllocation(resource.id, 'quantity', current + 1);
                                       }
                                     }}
@@ -511,7 +521,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     value={selectedResources.find(r => r.id === resource.id)?.hours || 0}
                                     onChange={(e) => updateResourceAllocation(resource.id, 'hours', parseInt(e.target.value) || 0)}
                                     min={1}
-                                    max={resource.available}
+                                    max={resource.allocation.hours || resource.available}
                                   />
                                   <Button 
                                     type="button" 
@@ -520,7 +530,8 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     className="h-8 w-8"
                                     onClick={() => {
                                       const current = selectedResources.find(r => r.id === resource.id)?.hours || 0;
-                                      if (current < resource.available) {
+                                      const max = resource.allocation.hours || resource.available;
+                                      if (current < max) {
                                         updateResourceAllocation(resource.id, 'hours', current + 1);
                                       }
                                     }}
@@ -556,7 +567,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     value={selectedResources.find(r => r.id === resource.id)?.days || 0}
                                     onChange={(e) => updateResourceAllocation(resource.id, 'days', parseInt(e.target.value) || 0)}
                                     min={1}
-                                    max={resource.available}
+                                    max={resource.allocation.days || resource.available}
                                   />
                                   <Button 
                                     type="button" 
@@ -565,7 +576,8 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     className="h-8 w-8"
                                     onClick={() => {
                                       const current = selectedResources.find(r => r.id === resource.id)?.days || 0;
-                                      if (current < resource.available) {
+                                      const max = resource.allocation.days || resource.available;
+                                      if (current < max) {
                                         updateResourceAllocation(resource.id, 'days', current + 1);
                                       }
                                     }}
@@ -597,7 +609,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     value={selectedResources.find(r => r.id === resource.id)?.quantity || 0}
                                     onChange={(e) => updateResourceAllocation(resource.id, 'quantity', parseInt(e.target.value) || 0)}
                                     min={1}
-                                    max={resource.available}
+                                    max={resource.allocation.quantity}
                                   />
                                   <Button 
                                     type="button" 
@@ -606,7 +618,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                                     className="h-8 w-8"
                                     onClick={() => {
                                       const current = selectedResources.find(r => r.id === resource.id)?.quantity || 0;
-                                      if (current < resource.available) {
+                                      if (current < resource.allocation.quantity) {
                                         updateResourceAllocation(resource.id, 'quantity', current + 1);
                                       }
                                     }}
