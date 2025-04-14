@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,7 +188,6 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
     }
 
     try {
-      // Only mark the allocation as consumed - do NOT update the resource's total quantity
       const { error: allocationError } = await supabase
         .from("resource_allocations")
         .update({ consumed: true })
@@ -197,9 +195,18 @@ const ProjectResources = ({ projectId }: ProjectResourcesProps) => {
 
       if (allocationError) throw allocationError;
       
+      const { error: resourceError } = await supabase
+        .from("resources")
+        .update({ 
+          quantity: allocation.resource.quantity - allocation.quantity 
+        })
+        .eq("id", allocation.resource.id);
+      
+      if (resourceError) throw resourceError;
+      
       toast({
         title: "Resource Consumed",
-        description: `${allocation.resource.name} has been marked as consumed.`,
+        description: `${allocation.resource.name} has been consumed and removed from inventory.`,
       });
       
       fetchResources();
