@@ -128,12 +128,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
       if (allocationsError) throw allocationsError;
 
       // Transform the data to match the Resource interface
-      const formattedResources = allocations
-        .filter(allocation => allocation.resources.returnable)
-        .map(allocation => ({
-          ...allocation.resources,
-          available: allocation.quantity,
-        }));
+      // Now include ALL resources, both returnable and consumable
+      const formattedResources = allocations.map(allocation => ({
+        ...allocation.resources,
+        available: allocation.quantity,
+      }));
 
       setProjectResources(formattedResources);
     } catch (error) {
@@ -423,11 +422,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                             {resource.name}
                           </label>
                           <span className="text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded-full">
-                            {resource.type} • {resource.available} {resource.unit}
+                            {resource.type} • {resource.available} {resource.unit} {resource.returnable ? '(Returnable)' : '(Consumable)'}
                           </span>
                         </div>
                         
-                        {selectedResources.some(r => r.id === resource.id) && (
+                        {selectedResources.some(r => r.id === resource.id) && resource.returnable && (
                           <div className="ml-6 mt-2 flex items-center gap-2">
                             {resource.type === 'Labor' ? (
                               <>
@@ -523,7 +522,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center p-6 text-gray-500 border rounded-md">
-                    <p>No returnable resources available for this project</p>
+                    <p>No resources available for this project</p>
                   </div>
                 )}
               </div>
