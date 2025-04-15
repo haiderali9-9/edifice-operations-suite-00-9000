@@ -49,8 +49,26 @@ export const InviteTeamMember: React.FC<InviteTeamMemberProps> = ({ onMemberAdde
     setIsSubmitting(true);
     
     try {
-      // In a real application, this would call a Supabase Edge Function to send the invitation email
-      console.log("Invitation email would be sent to:", values.email);
+      // Get the current session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("You must be logged in to send invitations");
+      }
+      
+      // Call our edge function to send the invitation email
+      const response = await supabase.functions.invoke('send-invitation', {
+        body: { email: values.email },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+      
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to send invitation");
+      }
+      
+      console.log("Invitation response:", response.data);
       
       // Show success message
       toast({
@@ -62,7 +80,7 @@ export const InviteTeamMember: React.FC<InviteTeamMemberProps> = ({ onMemberAdde
       form.reset();
       setOpen(false);
       
-      // Refresh the team members list
+      // Refresh the team members list if needed
       if (onMemberAdded) {
         setTimeout(() => onMemberAdded(), 0);
       }
