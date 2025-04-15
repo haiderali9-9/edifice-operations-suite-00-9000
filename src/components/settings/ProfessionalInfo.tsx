@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -35,33 +33,19 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
   const currentDepartment = watch('department');
 
   const positions = [
-    'Project Director',
-    'Senior Project Manager',
     'Project Manager',
-    'Assistant Project Manager',
+    'Construction Manager',
     'Site Engineer',
-    'Civil Engineer',
-    'Structural Engineer',
-    'Senior Architect',
-    'Junior Architect',
-    'Safety Manager',
-    'Quality Control Inspector',
-    'Construction Foreman',
-    'Superintendent',
-    'Estimator',
-    'Scheduler',
-    'Equipment Manager',
-    'Procurement Specialist',
-    'Contract Administrator'
+    'Cost Estimator',
+    'Safety Officer'
   ];
 
   const departments = [
-    'Management',
-    'Engineering',
-    'Design',
-    'Construction',
-    'Safety',
-    'Administration'
+    'Project Coordination',
+    'Site Supervision',
+    'Schedule Management',
+    'Cost Control',
+    'Safety Compliance'
   ];
 
   const onSubmit = async (data: { position: string; department: string }) => {

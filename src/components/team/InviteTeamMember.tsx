@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,22 +28,18 @@ interface InviteTeamMemberProps {
 
 const roles = [
   'Project Manager',
-  'Civil Engineer',
-  'Architect',
-  'Site Supervisor',
-  'Safety Officer',
-  'Contractor'
+  'Construction Manager',
+  'Site Engineer',
+  'Cost Estimator',
+  'Safety Officer'
 ];
 
 const departments = [
-  'Project Management',
-  'Construction Operations',
-  'Engineering & Design',
-  'Quality Control',
-  'Health & Safety',
-  'Site Planning',
-  'Procurement & Materials',
-  'MEP Systems'
+  'Project Coordination',
+  'Site Supervision',
+  'Schedule Management',
+  'Cost Control',
+  'Safety Compliance'
 ];
 
 export const InviteTeamMember: React.FC<InviteTeamMemberProps> = ({ onMemberAdded }) => {

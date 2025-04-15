@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -37,11 +36,10 @@ interface UserProfile {
 
 const roles = [
   'Project Manager',
-  'Civil Engineer',
-  'Architect',
-  'Site Supervisor',
-  'Safety Officer',
-  'Contractor'
+  'Construction Manager',
+  'Site Engineer',
+  'Cost Estimator',
+  'Safety Officer'
 ];
 
 export const AddProjectMember: React.FC<AddProjectMemberProps> = ({
