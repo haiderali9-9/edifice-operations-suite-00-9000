@@ -1,31 +1,49 @@
 
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import PhotoUpload from "@/components/settings/PhotoUpload";
+import ProfessionalInfo from "@/components/settings/ProfessionalInfo";
+import AccountSettings from "@/components/settings/AccountSettings";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabase";
 
 const Settings = () => {
   const { profile, updateProfile, refreshProfile, user } = useAuth();
   const [firstName, setFirstName] = useState(profile?.first_name || '');
   const [lastName, setLastName] = useState(profile?.last_name || '');
   const [email, setEmail] = useState(profile?.email || '');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(profile?.phone || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState('profile');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Update state when profile changes
+  useEffect(() => {
+    // Initialize dark mode from localStorage or system preference
+    const isDark = localStorage.getItem('darkMode') === 'true' || 
+      (!('darkMode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    setIsDarkMode(isDark);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
   useEffect(() => {
     if (profile) {
       setFirstName(profile.first_name || '');
       setLastName(profile.last_name || '');
       setEmail(profile.email || '');
+      setPhone(profile.phone || '');
     }
   }, [profile]);
 
@@ -36,10 +54,44 @@ const Settings = () => {
     try {
       await updateProfile({
         first_name: firstName,
-        last_name: lastName
+        last_name: lastName,
+        phone
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleProfessionalUpdate = async (data: { position: string; department: string }) => {
+    await updateProfile({
+      position: data.position,
+      department: data.department
+    });
+  };
+
+  const handleAvatarUpdate = async (url: string) => {
+    await updateProfile({
+      avatar_url: url
+    });
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      const { error } = await supabase.auth.admin.deleteUser(user?.id || '');
+      if (error) throw error;
+      
+      toast({
+        title: "Account deleted",
+        description: "Your account has been successfully deleted",
+      });
+      
+      navigate('/auth');
+    } catch (error: any) {
+      toast({
+        title: "Error deleting account",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -47,6 +99,17 @@ const Settings = () => {
     setIsRefreshing(true);
     await refreshProfile();
     setIsRefreshing(false);
+  };
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
+    }
   };
 
   const getInitials = () => {
@@ -81,17 +144,12 @@ const Settings = () => {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleProfileUpdate} className="space-y-4">
-                  <div className="flex items-center space-x-4 mb-6">
-                    <Avatar className="h-20 w-20">
-                      <AvatarImage src={profile?.avatar_url || ''} alt={profile?.first_name} />
-                      <AvatarFallback className="bg-construction-100 text-construction-700 text-xl">
-                        {getInitials()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <Button variant="outline" type="button">
-                      Change Photo
-                    </Button>
-                  </div>
+                  <PhotoUpload
+                    avatarUrl={profile?.avatar_url || null}
+                    userId={user?.id || ''}
+                    userInitials={getInitials()}
+                    onAvatarUpdate={handleAvatarUpdate}
+                  />
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -140,7 +198,7 @@ const Settings = () => {
                   <div className="flex gap-2">
                     <Button 
                       type="submit" 
-                      className="bg-construction-600 hover:bg-construction-700 mt-4"
+                      className="bg-construction-600 hover:bg-construction-700"
                       disabled={isSubmitting}
                     >
                       {isSubmitting ? 'Updating...' : 'Update Profile'}
@@ -149,7 +207,6 @@ const Settings = () => {
                     <Button 
                       type="button"
                       variant="outline" 
-                      className="mt-4"
                       onClick={handleRefreshProfile}
                       disabled={isRefreshing}
                     >
@@ -165,81 +222,26 @@ const Settings = () => {
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle>Professional Information</CardTitle>
-                <CardDescription>
-                  Update your work-related information and skills
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="title">Job Title</Label>
-                    <Input id="title" placeholder="e.g. Project Manager" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Input id="department" placeholder="e.g. Construction Management" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="skills">Skills</Label>
-                    <Input id="skills" placeholder="e.g. Project Management, CAD, Structural Engineering" />
-                  </div>
-                  
-                  <Button variant="outline" className="mt-4">
-                    Save Changes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <ProfessionalInfo
+              initialData={profile || {}}
+              onUpdate={handleProfessionalUpdate}
+            />
           </div>
         </TabsContent>
         
         <TabsContent value="account">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Settings</CardTitle>
-              <CardDescription>
-                Manage your account security and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <div className="flex gap-2">
-                    <Button variant="outline">Change Password</Button>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 border-t pt-4 mt-4">
-                  <Label className="text-red-600">Danger Zone</Label>
-                  <div className="flex gap-2">
-                    <Button variant="destructive">Delete Account</Button>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    This action cannot be undone. It will permanently delete your account and all associated data.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <AccountSettings onDeleteAccount={handleDeleteAccount} />
         </TabsContent>
         
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
               <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>
-                Manage your notification preferences
-              </CardDescription>
+              <CardDescription>Coming soon - Configure your notification preferences</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">
-                Notification settings will be implemented in a future update.
+              <p className="text-sm text-gray-500">
+                Notification settings will be available in a future update.
               </p>
             </CardContent>
           </Card>
@@ -249,14 +251,25 @@ const Settings = () => {
           <Card>
             <CardHeader>
               <CardTitle>Appearance Settings</CardTitle>
-              <CardDescription>
-                Customize how the application looks
-              </CardDescription>
+              <CardDescription>Customize your display preferences</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-500">
-                Appearance settings will be implemented in a future update.
-              </p>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Dark Mode</Label>
+                    <p className="text-sm text-gray-500">
+                      Toggle between light and dark theme
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={toggleDarkMode}
+                  >
+                    {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
