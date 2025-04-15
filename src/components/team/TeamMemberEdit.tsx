@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -43,60 +43,68 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [canEdit, setCanEdit] = useState<boolean>(false);
 
-  // Fetch current user
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
+  // Fetch current user - optimized with useCallback
+  const fetchCurrentUser = useCallback(async () => {
+    try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setCurrentUserId(session.user.id);
         // Check if current user is editing their own profile
         setCanEdit(session.user.id === memberId);
       }
-    };
-    
-    fetchCurrentUser();
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
   }, [memberId]);
 
-  // Fetch member data
   useEffect(() => {
-    const fetchMemberData = async () => {
-      if (!memberId || !isOpen) return;
+    if (isOpen) {
+      fetchCurrentUser();
+    }
+  }, [isOpen, fetchCurrentUser]);
+
+  // Fetch member data - optimized with useCallback
+  const fetchMemberData = useCallback(async () => {
+    if (!memberId || !isOpen) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', memberId)
+        .maybeSingle();
+
+      if (error) throw error;
       
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', memberId)
-          .maybeSingle();
-
-        if (error) throw error;
-        
-        if (data) {
-          setFormData({
-            first_name: data.first_name || '',
-            last_name: data.last_name || '',
-            email: data.email || '',
-            phone: data.phone || '',
-            position: data.position || '',
-            department: data.department || '',
-            role: data.role || '',
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching member data:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load member information',
-          variant: 'destructive',
+      if (data) {
+        setFormData({
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          position: data.position || '',
+          department: data.department || '',
+          role: data.role || '',
         });
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching member data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load member information',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [memberId, isOpen, toast]);
 
-    fetchMemberData();
-  }, [memberId, isOpen]);
+  useEffect(() => {
+    if (isOpen && memberId) {
+      fetchMemberData();
+    }
+  }, [isOpen, memberId, fetchMemberData]);
 
   // Reset form data when the sheet is closed
   useEffect(() => {
@@ -114,10 +122,11 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
   }, [isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -194,100 +203,102 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
     }
   };
 
+  // Use memo for the form content to prevent unnecessary re-renders
+  const formContent = !isLoading ? (
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="first_name">First Name</Label>
+            <Input
+              id="first_name"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              required
+              disabled={!canEdit}
+            />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="last_name">Last Name</Label>
+            <Input
+              id="last_name"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              required
+              disabled={!canEdit}
+            />
+          </div>
+        </div>
+        
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            disabled={!canEdit}
+          />
+        </div>
+        
+        <div className="grid gap-2">
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            name="phone"
+            value={formData.phone}
+            onChange={handleChange}
+            disabled={!canEdit}
+          />
+        </div>
+        
+        {canEdit && (
+          <SheetFooter className="pt-4">
+            <Button 
+              type="submit" 
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : 'Save Changes'}
+            </Button>
+          </SheetFooter>
+        )}
+      </form>
+
+      <div className="pt-6">
+        <ProfessionalInfo
+          initialData={{
+            position: formData.position,
+            department: formData.department,
+            role: formData.role
+          }}
+          onUpdate={handleProfessionalUpdate}
+          readOnly={!canEdit}
+        />
+      </div>
+    </>
+  ) : (
+    <div className="flex justify-center items-center h-64">
+      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+    </div>
+  );
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Edit Team Member</SheetTitle>
         </SheetHeader>
-        
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-          </div>
-        ) : (
-          <>
-            <form onSubmit={handleSubmit} className="space-y-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input
-                    id="first_name"
-                    name="first_name"
-                    value={formData.first_name}
-                    onChange={handleChange}
-                    required
-                    disabled={!canEdit}
-                  />
-                </div>
-                
-                <div className="grid gap-2">
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    name="last_name"
-                    value={formData.last_name}
-                    onChange={handleChange}
-                    required
-                    disabled={!canEdit}
-                  />
-                </div>
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  disabled={!canEdit}
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  disabled={!canEdit}
-                />
-              </div>
-              
-              {canEdit && (
-                <SheetFooter className="pt-4">
-                  <Button 
-                    type="submit" 
-                    disabled={isSubmitting}
-                    className="w-full sm:w-auto"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Updating...
-                      </>
-                    ) : 'Save Changes'}
-                  </Button>
-                </SheetFooter>
-              )}
-            </form>
-
-            <div className="pt-6">
-              <ProfessionalInfo
-                initialData={{
-                  position: formData.position,
-                  department: formData.department,
-                  role: formData.role
-                }}
-                onUpdate={handleProfessionalUpdate}
-                readOnly={!canEdit}
-              />
-            </div>
-          </>
-        )}
+        {formContent}
       </SheetContent>
     </Sheet>
   );
