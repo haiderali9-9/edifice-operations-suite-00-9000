@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +44,6 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // For standalone team form
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,9 +52,17 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
   const [department, setDepartment] = useState('');
 
   const roles = ['Project Manager', 'Civil Engineer', 'Architect', 'Site Supervisor', 'Safety Officer', 'Contractor'];
-  const departments = ['Management', 'Engineering', 'Design', 'Construction', 'Safety', 'Administration'];
+  const departments = [
+    'Project Management',
+    'Construction Operations',
+    'Engineering & Design',
+    'Quality Control',
+    'Health & Safety',
+    'Site Planning',
+    'Procurement & Materials',
+    'MEP Systems'
+  ];
 
-  // Fetch available users from profiles table
   useEffect(() => {
     const fetchUsers = async () => {
       setIsLoading(true);
@@ -86,7 +92,6 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
     e.preventDefault();
     
     if (projectId) {
-      // Project team member assignment
       if (!selectedUser || !role) {
         toast({
           title: "Missing information",
@@ -99,7 +104,6 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
       setIsSubmitting(true);
       
       try {
-        // Add member to team_members table
         const { error } = await supabase
           .from('team_members')
           .insert({
@@ -115,12 +119,10 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
           description: "The team member has been added to the project.",
         });
         
-        // Reset form
         setSelectedUser('');
         setRole('');
         setOpen(false);
         
-        // Notify parent component
         if (onMemberAdded) {
           onMemberAdded();
         }
@@ -139,7 +141,6 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
         setIsSubmitting(false);
       }
     } else {
-      // Standalone team member creation
       if (!firstName || !lastName || !role) {
         toast({
           title: "Missing information",
@@ -152,10 +153,8 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
       setIsSubmitting(true);
       
       try {
-        // Generate a UUID for the new team member
         const userId = uuidv4();
         
-        // Add new team member to profiles
         const { error } = await supabase
           .from('profiles')
           .insert({
@@ -179,7 +178,6 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
           description: `${firstName} ${lastName} has been added to the team.`,
         });
         
-        // Reset form
         setFirstName('');
         setLastName('');
         setEmail('');
@@ -189,7 +187,6 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
         setRole('');
         setOpen(false);
         
-        // Notify parent component
         if (onMemberAdded) {
           onMemberAdded();
         }
@@ -213,9 +210,7 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
     }
   };
 
-  // Dialog content or standalone button based on projectId prop
   if (projectId) {
-    // Render just the dialog content when projectId is provided
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-[550px]">
@@ -284,18 +279,17 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
     );
   }
 
-  // Original form with trigger button for the Team page
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-construction-700 hover:bg-construction-800">
-          <UserPlus className="h-4 w-4 mr-2" /> Add Team Member
+          <UserPlus className="h-4 w-4 mr-2" /> Invite Team Member
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[550px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Team Member</DialogTitle>
+            <DialogTitle>Invite Team Member</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
@@ -322,28 +316,15 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="Enter phone number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Enter email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             
             <div className="grid gap-2">
@@ -395,10 +376,10 @@ const TeamMemberForm: React.FC<TeamMemberFormProps> = ({ onMemberAdded, projectI
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" /> 
-                  Adding...
+                  Sending Invitation...
                 </>
               ) : (
-                'Add Team Member'
+                'Send Invitation'
               )}
             </Button>
           </DialogFooter>
