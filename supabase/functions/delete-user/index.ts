@@ -62,7 +62,25 @@ serve(async (req) => {
       )
     }
 
-    // Delete the user using the service role
+    console.log(`Processing deletion request for user ${user.id}`)
+
+    // First, handle the foreign key constraint by updating any projects where this user is the manager
+    const { error: projectsError } = await supabaseAdmin
+      .from('projects')
+      .update({ manager_id: null })
+      .eq('manager_id', user.id)
+    
+    if (projectsError) {
+      console.error('Error updating projects:', projectsError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to update projects: ' + projectsError.message }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    console.log(`Updated projects for user ${user.id}, proceeding with user deletion`)
+
+    // Now delete the user using the service role
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id)
 
     if (deleteError) {
@@ -72,6 +90,8 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       )
     }
+
+    console.log(`Successfully deleted user ${user.id}`)
 
     return new Response(
       JSON.stringify({ success: true, message: 'User deleted successfully' }),
