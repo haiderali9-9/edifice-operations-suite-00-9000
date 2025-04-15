@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -84,23 +83,8 @@ const Settings = () => {
   };
 
   const handleDeleteAccount = async () => {
-    try {
-      const { error } = await supabase.auth.admin.deleteUser(user?.id || '');
-      if (error) throw error;
-      
-      toast({
-        title: "Account deleted",
-        description: "Your account has been successfully deleted",
-      });
-      
-      navigate('/auth');
-    } catch (error: any) {
-      toast({
-        title: "Error deleting account",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+    // This is now handled directly in the AccountSettings component
+    // using the Edge Function
   };
 
   const toggleDarkMode = () => {

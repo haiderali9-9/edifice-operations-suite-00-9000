@@ -15,6 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface AccountSettingsProps {
   onDeleteAccount: () => Promise<void>;
@@ -24,7 +26,9 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +61,54 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setIsDeleting(true);
+      
+      // Get the current session
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("No active session found");
+      }
+      
+      // Call the edge function with the user's token
+      const response = await fetch(
+        'https://clowkphpdyuamzscmztv.supabase.co/functions/v1/delete-user', 
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete account');
+      }
+      
+      toast({
+        title: "Account deleted",
+        description: "Your account has been successfully deleted",
+      });
+      
+      // Sign out the user
+      await supabase.auth.signOut();
+      navigate('/auth');
+    } catch (error: any) {
+      toast({
+        title: "Error deleting account",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -131,8 +183,17 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
-                  <Button variant="destructive" onClick={onDeleteAccount}>
-                    Yes, delete my account
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : 'Yes, delete my account'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
