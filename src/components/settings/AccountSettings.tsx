@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 interface AccountSettingsProps {
   onDeleteAccount: () => Promise<void>;
@@ -27,6 +28,7 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -87,10 +89,9 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
         }
       );
       
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete account');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete account');
       }
       
       toast({
@@ -109,6 +110,7 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
       });
     } finally {
       setIsDeleting(false);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -170,23 +172,24 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
           
           <div className="space-y-2 border-t pt-4">
             <Label className="text-red-600">Danger Zone</Label>
-            <Dialog>
-              <DialogTrigger asChild>
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+              <AlertDialogTrigger asChild>
                 <Button variant="destructive">Delete Account</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Are you absolutely sure?</DialogTitle>
-                  <DialogDescription>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
                     This action cannot be undone. This will permanently delete your
                     account and remove all your data from our servers.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button 
-                    variant="destructive" 
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
                     onClick={handleDeleteAccount}
                     disabled={isDeleting}
+                    className="bg-destructive text-destructive-foreground"
                   >
                     {isDeleting ? (
                       <>
@@ -194,10 +197,10 @@ const AccountSettings = ({ onDeleteAccount }: AccountSettingsProps) => {
                         Deleting...
                       </>
                     ) : 'Yes, delete my account'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <p className="text-sm text-gray-500">
               This action cannot be undone. It will permanently delete your account
               and all associated data.
