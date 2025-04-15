@@ -10,32 +10,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import ProfessionalInfo from '@/components/settings/ProfessionalInfo';
 
 interface TeamMemberEditProps {
   memberId: string | null;
   isOpen: boolean;
   onClose: () => void;
   onMemberUpdated?: () => void;
-}
-
-interface MemberFormData {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  role: string;
-  position: string;
-  department: string;
 }
 
 const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({ 
@@ -45,41 +29,35 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
   onMemberUpdated 
 }) => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState<MemberFormData>({
+  const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     email: '',
     phone: '',
-    role: '',
     position: '',
     department: '',
+    role: '',
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState<boolean>(false);
 
-  const roles = ['Project Manager', 'Civil Engineer', 'Architect', 'Site Supervisor', 'Safety Officer', 'Contractor'];
-  const departments = ['Management', 'Engineering', 'Design', 'Construction', 'Safety', 'Administration'];
-  const positions = [
-    'Project Director',
-    'Senior Project Manager',
-    'Project Manager',
-    'Assistant Project Manager',
-    'Site Engineer',
-    'Civil Engineer',
-    'Structural Engineer',
-    'Senior Architect',
-    'Junior Architect',
-    'Safety Manager',
-    'Quality Control Inspector',
-    'Construction Foreman',
-    'Superintendent',
-    'Estimator',
-    'Scheduler',
-    'Equipment Manager',
-    'Procurement Specialist',
-    'Contract Administrator'
-  ];
+  // Fetch current user
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setCurrentUserId(session.user.id);
+        // Check if current user is editing their own profile
+        setCanEdit(session.user.id === memberId);
+      }
+    };
+    
+    fetchCurrentUser();
+  }, [memberId]);
 
+  // Fetch member data
   useEffect(() => {
     const fetchMemberData = async () => {
       if (!memberId || !isOpen) return;
@@ -100,9 +78,9 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
             last_name: data.last_name || '',
             email: data.email || '',
             phone: data.phone || '',
-            role: data.role || '',
             position: data.position || '',
             department: data.department || '',
+            role: data.role || '',
           });
         }
       } catch (error) {
@@ -128,9 +106,9 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
         last_name: '',
         email: '',
         phone: '',
-        role: '',
         position: '',
         department: '',
+        role: '',
       });
     }
   }, [isOpen]);
@@ -139,13 +117,6 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSelectChange = (field: string, value: string) => {
-    setFormData({
-      ...formData,
-      [field]: value,
     });
   };
 
@@ -163,9 +134,6 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
           last_name: formData.last_name,
           email: formData.email,
           phone: formData.phone,
-          role: formData.role,
-          position: formData.position,
-          department: formData.department,
         })
         .eq('id', memberId);
 
@@ -193,6 +161,39 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
     }
   };
 
+  const handleProfessionalUpdate = async (data: { position: string; department: string; role: string }) => {
+    if (!memberId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          position: data.position,
+          department: data.department,
+          role: data.role
+        })
+        .eq('id', memberId);
+
+      if (error) throw error;
+      
+      toast({
+        title: 'Success',
+        description: 'Professional information updated successfully',
+      });
+      
+      if (onMemberUpdated) {
+        onMemberUpdated();
+      }
+    } catch (error) {
+      console.error('Error updating professional info:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update professional information',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full sm:max-w-md overflow-y-auto">
@@ -205,126 +206,87 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          <>
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="first_name">First Name</Label>
+                  <Input
+                    id="first_name"
+                    name="first_name"
+                    value={formData.first_name}
+                    onChange={handleChange}
+                    required
+                    disabled={!canEdit}
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
+                    id="last_name"
+                    name="last_name"
+                    value={formData.last_name}
+                    onChange={handleChange}
+                    required
+                    disabled={!canEdit}
+                  />
+                </div>
+              </div>
+              
               <div className="grid gap-2">
-                <Label htmlFor="first_name">First Name</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
-                  id="first_name"
-                  name="first_name"
-                  value={formData.first_name}
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
                   onChange={handleChange}
-                  required
+                  disabled={!canEdit}
                 />
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="last_name">Last Name</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input
-                  id="last_name"
-                  name="last_name"
-                  value={formData.last_name}
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
                   onChange={handleChange}
-                  required
+                  disabled={!canEdit}
                 />
               </div>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
-              <Select 
-                value={formData.role} 
-                onValueChange={(value) => handleSelectChange('role', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="position">Position</Label>
-                <Select 
-                  value={formData.position} 
-                  onValueChange={(value) => handleSelectChange('position', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {positions.map((position) => (
-                      <SelectItem key={position} value={position}>
-                        {position}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               
-              <div className="grid gap-2">
-                <Label htmlFor="department">Department</Label>
-                <Select 
-                  value={formData.department} 
-                  onValueChange={(value) => handleSelectChange('department', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {departments.map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {canEdit && (
+                <SheetFooter className="pt-4">
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className="w-full sm:w-auto"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Updating...
+                      </>
+                    ) : 'Save Changes'}
+                  </Button>
+                </SheetFooter>
+              )}
+            </form>
+
+            <div className="pt-6">
+              <ProfessionalInfo
+                initialData={{
+                  position: formData.position,
+                  department: formData.department,
+                  role: formData.role
+                }}
+                onUpdate={handleProfessionalUpdate}
+                readOnly={!canEdit}
+              />
             </div>
-            
-            <SheetFooter className="pt-4">
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full sm:w-auto"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : 'Save Changes'}
-              </Button>
-            </SheetFooter>
-          </form>
+          </>
         )}
       </SheetContent>
     </Sheet>
