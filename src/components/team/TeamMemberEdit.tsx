@@ -45,6 +45,8 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
 
   // Fetch current user - optimized with useCallback
   const fetchCurrentUser = useCallback(async () => {
+    if (!isOpen) return;
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -55,13 +57,7 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
     } catch (error) {
       console.error('Error fetching current user:', error);
     }
-  }, [memberId]);
-
-  useEffect(() => {
-    if (isOpen) {
-      fetchCurrentUser();
-    }
-  }, [isOpen, fetchCurrentUser]);
+  }, [memberId, isOpen]);
 
   // Fetch member data - optimized with useCallback
   const fetchMemberData = useCallback(async () => {
@@ -99,6 +95,13 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
       setIsLoading(false);
     }
   }, [memberId, isOpen, toast]);
+
+  // Use separate effects to prevent cascade updates
+  useEffect(() => {
+    if (isOpen) {
+      fetchCurrentUser();
+    }
+  }, [isOpen, fetchCurrentUser]);
 
   useEffect(() => {
     if (isOpen && memberId) {
@@ -154,7 +157,10 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
       });
       
       if (onMemberUpdated) {
-        onMemberUpdated();
+        // Use setTimeout to prevent freezing
+        setTimeout(() => {
+          onMemberUpdated();
+        }, 0);
       }
       
       onClose();
@@ -190,8 +196,11 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
         description: 'Professional information updated successfully',
       });
       
+      // Use setTimeout to prevent freezing
       if (onMemberUpdated) {
-        onMemberUpdated();
+        setTimeout(() => {
+          onMemberUpdated();
+        }, 0);
       }
     } catch (error) {
       console.error('Error updating professional info:', error);
@@ -203,7 +212,7 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
     }
   };
 
-  // Use memo for the form content to prevent unnecessary re-renders
+  // Use memo for the form content
   const formContent = !isLoading ? (
     <>
       <form onSubmit={handleSubmit} className="space-y-4 py-4">
