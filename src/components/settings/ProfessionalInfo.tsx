@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from "react-hook-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,15 +13,36 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export const POSITIONS = [
+  'Project Manager',
+  'Construction Manager',
+  'Site Engineer',
+  'Cost Estimator',
+  'Safety Officer'
+];
+
+export const DEPARTMENTS = [
+  'Project Coordination',
+  'Site Supervision',
+  'Schedule Management',
+  'Cost Control',
+  'Safety Compliance'
+];
+
 interface ProfessionalInfoProps {
   initialData: {
     position?: string | null;
     department?: string | null;
   };
-  onUpdate: (data: { position: string; department: string }) => Promise<void>;
+  onUpdate: (data: { position: string; department: string }) => Promise<void> | void;
+  readOnly?: boolean;
 }
 
-const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
+const ProfessionalInfo = ({ 
+  initialData, 
+  onUpdate, 
+  readOnly = false 
+}: ProfessionalInfoProps) => {
   const { register, handleSubmit, formState: { isSubmitting }, setValue, watch } = useForm({
     defaultValues: {
       position: initialData.position || '',
@@ -31,22 +53,6 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
   
   const currentPosition = watch('position');
   const currentDepartment = watch('department');
-
-  const positions = [
-    'Project Manager',
-    'Construction Manager',
-    'Site Engineer',
-    'Cost Estimator',
-    'Safety Officer'
-  ];
-
-  const departments = [
-    'Project Coordination',
-    'Site Supervision',
-    'Schedule Management',
-    'Cost Control',
-    'Safety Compliance'
-  ];
 
   const onSubmit = async (data: { position: string; department: string }) => {
     try {
@@ -87,12 +93,13 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
             <Select 
               value={currentPosition} 
               onValueChange={handlePositionChange}
+              disabled={readOnly}
             >
               <SelectTrigger id="position">
                 <SelectValue placeholder="Select a position" />
               </SelectTrigger>
               <SelectContent>
-                {positions.map((position) => (
+                {POSITIONS.map((position) => (
                   <SelectItem key={position} value={position}>
                     {position}
                   </SelectItem>
@@ -107,12 +114,13 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
             <Select 
               value={currentDepartment} 
               onValueChange={handleDepartmentChange}
+              disabled={readOnly}
             >
               <SelectTrigger id="department">
                 <SelectValue placeholder="Select a department" />
               </SelectTrigger>
               <SelectContent>
-                {departments.map((dept) => (
+                {DEPARTMENTS.map((dept) => (
                   <SelectItem key={dept} value={dept}>
                     {dept}
                   </SelectItem>
@@ -122,9 +130,11 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
             <input type="hidden" {...register('department')} />
           </div>
           
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </Button>
+          {!readOnly && (
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </Button>
+          )}
         </form>
       </CardContent>
     </Card>

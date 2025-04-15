@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -8,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2 } from "lucide-react";
 import PhotoUpload from "@/components/settings/PhotoUpload";
 import ProfessionalInfo from "@/components/settings/ProfessionalInfo";
 import AccountSettings from "@/components/settings/AccountSettings";
@@ -16,20 +14,18 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
 const Settings = () => {
-  const { profile, updateProfile, refreshProfile, user } = useAuth();
+  const { profile, updateProfile, user } = useAuth();
   const [firstName, setFirstName] = useState(profile?.first_name || '');
   const [lastName, setLastName] = useState(profile?.last_name || '');
   const [email, setEmail] = useState(profile?.email || '');
   const [phone, setPhone] = useState(profile?.phone || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentTab, setCurrentTab] = useState('profile');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Initialize dark mode from localStorage or system preference
     const isDark = localStorage.getItem('darkMode') === 'true' || 
       (!('darkMode' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
     setIsDarkMode(isDark);
@@ -56,6 +52,16 @@ const Settings = () => {
         first_name: firstName,
         last_name: lastName,
         phone
+      });
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been successfully updated"
+      });
+    } catch (error) {
+      toast({
+        title: "Error Updating Profile",
+        description: "An error occurred while updating your profile",
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -147,8 +153,8 @@ const Settings = () => {
                   <PhotoUpload
                     avatarUrl={profile?.avatar_url || null}
                     userId={user?.id || ''}
-                    userInitials={getInitials()}
-                    onAvatarUpdate={handleAvatarUpdate}
+                    userInitials={`${firstName.charAt(0)}${lastName.charAt(0)}`}
+                    onAvatarUpdate={(url) => updateProfile({ avatar_url: url })}
                   />
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -195,36 +201,23 @@ const Settings = () => {
                     />
                   </div>
                   
-                  <div className="flex gap-2">
-                    <Button 
-                      type="submit" 
-                      className="bg-construction-600 hover:bg-construction-700"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Updating...' : 'Update Profile'}
-                    </Button>
-                    
-                    <Button 
-                      type="button"
-                      variant="outline" 
-                      onClick={handleRefreshProfile}
-                      disabled={isRefreshing}
-                    >
-                      {isRefreshing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Refreshing...
-                        </>
-                      ) : 'Refresh Profile'}
-                    </Button>
-                  </div>
+                  <Button 
+                    type="submit" 
+                    className="bg-construction-600 hover:bg-construction-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Updating...' : 'Update Profile'}
+                  </Button>
                 </form>
               </CardContent>
             </Card>
             
             <ProfessionalInfo
               initialData={profile || {}}
-              onUpdate={handleProfessionalUpdate}
+              onUpdate={(data) => updateProfile({
+                position: data.position,
+                department: data.department
+              })}
             />
           </div>
         </TabsContent>
