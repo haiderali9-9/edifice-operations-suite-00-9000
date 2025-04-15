@@ -101,12 +101,6 @@ const Settings = () => {
     }
   };
 
-  const handleRefreshProfile = async () => {
-    setIsRefreshing(true);
-    await refreshProfile();
-    setIsRefreshing(false);
-  };
-
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
     if (isDarkMode) {
