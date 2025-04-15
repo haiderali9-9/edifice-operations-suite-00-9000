@@ -59,10 +59,30 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
 
   const roles = ['Project Manager', 'Civil Engineer', 'Architect', 'Site Supervisor', 'Safety Officer', 'Contractor'];
   const departments = ['Management', 'Engineering', 'Design', 'Construction', 'Safety', 'Administration'];
+  const positions = [
+    'Project Director',
+    'Senior Project Manager',
+    'Project Manager',
+    'Assistant Project Manager',
+    'Site Engineer',
+    'Civil Engineer',
+    'Structural Engineer',
+    'Senior Architect',
+    'Junior Architect',
+    'Safety Manager',
+    'Quality Control Inspector',
+    'Construction Foreman',
+    'Superintendent',
+    'Estimator',
+    'Scheduler',
+    'Equipment Manager',
+    'Procurement Specialist',
+    'Contract Administrator'
+  ];
 
   useEffect(() => {
     const fetchMemberData = async () => {
-      if (!memberId) return;
+      if (!memberId || !isOpen) return;
       
       setIsLoading(true);
       try {
@@ -97,10 +117,23 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
       }
     };
 
-    if (isOpen && memberId) {
-      fetchMemberData();
-    }
+    fetchMemberData();
   }, [memberId, isOpen]);
+
+  // Reset form data when the sheet is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        role: '',
+        position: '',
+        department: '',
+      });
+    }
+  }, [isOpen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -240,12 +273,21 @@ const TeamMemberEdit: React.FC<TeamMemberEditProps> = ({
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="position">Position</Label>
-                <Input
-                  id="position"
-                  name="position"
-                  value={formData.position}
-                  onChange={handleChange}
-                />
+                <Select 
+                  value={formData.position} 
+                  onValueChange={(value) => handleSelectChange('position', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {positions.map((position) => (
+                      <SelectItem key={position} value={position}>
+                        {position}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div className="grid gap-2">

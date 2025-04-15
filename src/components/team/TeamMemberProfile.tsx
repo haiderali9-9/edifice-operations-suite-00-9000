@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Mail, Phone, Building, Briefcase, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 
 interface TeamMemberProfileProps {
   memberId: string | null;
@@ -31,7 +31,7 @@ const TeamMemberProfile: React.FC<TeamMemberProfileProps> = ({ memberId, isOpen,
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!memberId) return;
+      if (!memberId || !isOpen) return;
       
       setIsLoading(true);
       try {
@@ -50,10 +50,15 @@ const TeamMemberProfile: React.FC<TeamMemberProfileProps> = ({ memberId, isOpen,
       }
     };
 
-    if (isOpen && memberId) {
-      fetchProfile();
-    }
+    fetchProfile();
   }, [memberId, isOpen]);
+
+  // Reset profile when sheet closes
+  useEffect(() => {
+    if (!isOpen) {
+      setProfile(null);
+    }
+  }, [isOpen]);
 
   const getInitials = (firstName?: string | null, lastName?: string | null) => {
     return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`;

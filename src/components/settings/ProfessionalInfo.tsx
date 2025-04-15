@@ -6,6 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ProfessionalInfoProps {
   initialData: {
@@ -16,13 +23,46 @@ interface ProfessionalInfoProps {
 }
 
 const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+  const { register, handleSubmit, formState: { isSubmitting }, setValue, watch } = useForm({
     defaultValues: {
       position: initialData.position || '',
       department: initialData.department || '',
     }
   });
   const { toast } = useToast();
+  
+  const currentPosition = watch('position');
+  const currentDepartment = watch('department');
+
+  const positions = [
+    'Project Director',
+    'Senior Project Manager',
+    'Project Manager',
+    'Assistant Project Manager',
+    'Site Engineer',
+    'Civil Engineer',
+    'Structural Engineer',
+    'Senior Architect',
+    'Junior Architect',
+    'Safety Manager',
+    'Quality Control Inspector',
+    'Construction Foreman',
+    'Superintendent',
+    'Estimator',
+    'Scheduler',
+    'Equipment Manager',
+    'Procurement Specialist',
+    'Contract Administrator'
+  ];
+
+  const departments = [
+    'Management',
+    'Engineering',
+    'Design',
+    'Construction',
+    'Safety',
+    'Administration'
+  ];
 
   const onSubmit = async (data: { position: string; department: string }) => {
     try {
@@ -40,6 +80,14 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
     }
   };
 
+  const handlePositionChange = (value: string) => {
+    setValue('position', value);
+  };
+
+  const handleDepartmentChange = (value: string) => {
+    setValue('department', value);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -52,20 +100,42 @@ const ProfessionalInfo = ({ initialData, onUpdate }: ProfessionalInfoProps) => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="position">Position</Label>
-            <Input
-              id="position"
-              {...register('position')}
-              placeholder="e.g. Project Manager"
-            />
+            <Select 
+              value={currentPosition} 
+              onValueChange={handlePositionChange}
+            >
+              <SelectTrigger id="position">
+                <SelectValue placeholder="Select a position" />
+              </SelectTrigger>
+              <SelectContent>
+                {positions.map((position) => (
+                  <SelectItem key={position} value={position}>
+                    {position}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input type="hidden" {...register('position')} />
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="department">Department</Label>
-            <Input
-              id="department"
-              {...register('department')}
-              placeholder="e.g. Construction Management"
-            />
+            <Select 
+              value={currentDepartment} 
+              onValueChange={handleDepartmentChange}
+            >
+              <SelectTrigger id="department">
+                <SelectValue placeholder="Select a department" />
+              </SelectTrigger>
+              <SelectContent>
+                {departments.map((dept) => (
+                  <SelectItem key={dept} value={dept}>
+                    {dept}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input type="hidden" {...register('department')} />
           </div>
           
           <Button type="submit" disabled={isSubmitting}>
