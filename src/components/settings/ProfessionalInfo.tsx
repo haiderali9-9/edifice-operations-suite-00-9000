@@ -22,6 +22,12 @@ export const POSITIONS = [
 ];
 
 export const DEPARTMENTS = [
+  'Management',
+  'Engineering',
+  'Design',
+  'Construction',
+  'Safety',
+  'Administration',
   'Project Coordination',
   'Site Supervision',
   'Schedule Management',
@@ -29,12 +35,22 @@ export const DEPARTMENTS = [
   'Safety Compliance'
 ];
 
+export const ROLES = [
+  'Admin',
+  'Manager',
+  'Team Lead',
+  'Member',
+  'Guest',
+  'Contractor'
+];
+
 interface ProfessionalInfoProps {
   initialData: {
     position?: string | null;
     department?: string | null;
+    role?: string | null;
   };
-  onUpdate: (data: { position: string; department: string }) => Promise<void> | void;
+  onUpdate: (data: { position: string; department: string; role: string }) => Promise<void> | void;
   readOnly?: boolean;
 }
 
@@ -47,14 +63,16 @@ const ProfessionalInfo = ({
     defaultValues: {
       position: initialData.position || '',
       department: initialData.department || '',
+      role: initialData.role || '',
     }
   });
   const { toast } = useToast();
   
   const currentPosition = watch('position');
   const currentDepartment = watch('department');
+  const currentRole = watch('role');
 
-  const onSubmit = async (data: { position: string; department: string }) => {
+  const onSubmit = async (data: { position: string; department: string; role: string }) => {
     try {
       await onUpdate(data);
       toast({
@@ -76,6 +94,10 @@ const ProfessionalInfo = ({
 
   const handleDepartmentChange = (value: string) => {
     setValue('department', value);
+  };
+
+  const handleRoleChange = (value: string) => {
+    setValue('role', value);
   };
 
   return (
@@ -128,6 +150,27 @@ const ProfessionalInfo = ({
               </SelectContent>
             </Select>
             <input type="hidden" {...register('department')} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="role">Role</Label>
+            <Select 
+              value={currentRole} 
+              onValueChange={handleRoleChange}
+              disabled={readOnly}
+            >
+              <SelectTrigger id="role">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLES.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <input type="hidden" {...register('role')} />
           </div>
           
           {!readOnly && (

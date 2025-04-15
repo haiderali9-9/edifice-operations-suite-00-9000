@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageLayout from "@/components/layout/PageLayout";
@@ -68,10 +69,11 @@ const Settings = () => {
     }
   };
 
-  const handleProfessionalUpdate = async (data: { position: string; department: string }) => {
+  const handleProfessionalUpdate = async (data: { position: string; department: string; role: string }) => {
     await updateProfile({
       position: data.position,
-      department: data.department
+      department: data.department,
+      role: data.role
     });
   };
 
@@ -110,10 +112,6 @@ const Settings = () => {
       document.documentElement.classList.add('dark');
       localStorage.setItem('darkMode', 'true');
     }
-  };
-
-  const getInitials = () => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`;
   };
 
   return (
@@ -208,10 +206,7 @@ const Settings = () => {
             
             <ProfessionalInfo
               initialData={profile || {}}
-              onUpdate={(data) => updateProfile({
-                position: data.position,
-                department: data.department
-              })}
+              onUpdate={handleProfessionalUpdate}
             />
           </div>
         </TabsContent>
