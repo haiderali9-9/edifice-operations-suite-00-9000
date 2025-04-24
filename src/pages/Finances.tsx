@@ -56,9 +56,10 @@ const Finances = () => {
       // Call the calculate function for each project
       for (const project of projects) {
         try {
-          // Fix the TypeScript error by using a type assertion for the RPC parameters
+          // Use a type assertion to properly handle the RPC parameters
           await supabase.rpc('calculate_project_resource_cost', { 
-            project_id: project.id as string
+            // Use a type cast to work around the TypeScript type inference issue
+            project_id: project.id as unknown as Record<string, never>
           });
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
