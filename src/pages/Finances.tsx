@@ -52,11 +52,13 @@ const Finances = () => {
       
       for (const project of projects) {
         try {
-          type CalcParams = {
+          interface CalcResourceCostParams {
             project_id: string;
-          };
-          const params: CalcParams = { project_id: project.id };
-          await supabase.rpc('calculate_project_resource_cost', params);
+          }
+          
+          await supabase.rpc<any>('calculate_project_resource_cost', {
+            project_id: project.id
+          } as CalcResourceCostParams);
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
         }
