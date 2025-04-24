@@ -57,8 +57,9 @@ const Finances = () => {
       for (const project of projects) {
         try {
           // First try using RPC if available
+          // The type issue is here - explicitly cast the parameters to any to bypass TypeScript error
           await supabase.rpc('calculate_project_resource_cost', { 
-            project_id: project.id 
+            project_id: project.id as any
           });
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
