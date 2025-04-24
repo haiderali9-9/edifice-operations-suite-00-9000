@@ -1,4 +1,3 @@
-
 export type Json =
   | string
   | number
@@ -420,6 +419,53 @@ export interface Database {
           task_id?: string
           user_id?: string
         }
+      }
+      schedule_events: {
+        Row: {
+          id: string
+          title: string
+          project_id: string
+          type: string
+          date: string
+          start_time: string
+          end_time: string
+          description?: string | null
+          resource_ids?: string[] | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          project_id: string
+          type: string
+          date: string
+          start_time: string
+          end_time: string
+          description?: string | null
+          resource_ids?: string[] | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          project_id?: string
+          type?: string
+          date?: string
+          start_time?: string
+          end_time?: string
+          description?: string | null
+          resource_ids?: string[] | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
   }

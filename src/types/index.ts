@@ -1,4 +1,3 @@
-
 // Update the existing types file to include the new table types
 export interface Task {
   id: string;
@@ -130,3 +129,34 @@ export interface Expense {
   paid_by: string;
   created_at?: string;
 }
+
+export interface ScheduleEvent {
+  id: string;
+  title: string;
+  project_id: string;
+  type: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  description?: string;
+  resource_ids?: string[];
+  created_at: string;
+  projects?: {
+    name: string;
+  };
+}
+
+// Update existing exports to include the new type
+export {
+  Task,
+  TaskAssignment,
+  TaskResource,
+  Document,
+  Issue,
+  Project,
+  User,
+  Resource,
+  ResourceAllocation,
+  Expense,
+  ScheduleEvent
+};
