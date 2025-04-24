@@ -1,4 +1,5 @@
-// Update the existing types file to include the new table types
+
+// Types for project entities
 export interface Task {
   id: string;
   project_id: string;
@@ -41,7 +42,7 @@ export interface Document {
   projects?: {
     name: string;
   };
-  created_at?: string; // Added missing field that was causing TypeScript errors
+  created_at?: string; 
 }
 
 export interface Issue {
@@ -49,8 +50,8 @@ export interface Issue {
   project_id: string;
   title: string;
   description?: string;
-  status: 'Open' | 'In Progress' | 'Resolved' | string; // Updated to handle any string from DB
-  priority: 'Low' | 'Medium' | 'High' | 'Critical' | string; // Updated to handle any string from DB
+  status: 'Open' | 'In Progress' | 'Resolved' | string;
+  priority: 'Low' | 'Medium' | 'High' | 'Critical' | string;
   report_date: string;
   resolution_date?: string;
   reported_by: string | User;
@@ -87,19 +88,16 @@ export interface User {
 export interface Resource {
   id: string;
   name: string;
-  type: 'Material' | 'Equipment' | 'Labor' | string; // Updated to handle any string from DB
+  type: 'Material' | 'Equipment' | 'Labor' | string;
   quantity: number;
   unit: string;
   cost: number;
-  status: 'Available' | 'Low Stock' | 'Out of Stock' | string; // Updated to handle any string from DB
+  status: 'Available' | 'Low Stock' | 'Out of Stock' | string;
   returnable: boolean;
   resource_allocations?: ResourceAllocation[];
   created_at?: string;
-  // Add the missing property that's causing the TypeScript errors
   available?: number;
-  // Add other calculated properties that might be used
   allocated?: number;
-  // Add new pricing fields
   hour_rate?: number;
   day_rate?: number;
 }
@@ -109,13 +107,13 @@ export interface ResourceAllocation {
   resource_id: string;
   project_id: string;
   quantity: number;
-  created_at?: string; // Added this field to match what is used in the code
-  consumed?: boolean; // Added this field to match what is used in the code
+  created_at?: string;
+  consumed?: boolean;
   projects?: {
     name: string;
   };
-  days?: number; // Added field for days allocation
-  hours?: number; // Added field for hours allocation
+  days?: number;
+  hours?: number;
 }
 
 export interface Expense {
@@ -145,18 +143,3 @@ export interface ScheduleEvent {
     name: string;
   };
 }
-
-// Update existing exports to include the new type
-export {
-  Task,
-  TaskAssignment,
-  TaskResource,
-  Document,
-  Issue,
-  Project,
-  User,
-  Resource,
-  ResourceAllocation,
-  Expense,
-  ScheduleEvent
-};
