@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,11 +55,10 @@ const Finances = () => {
       // Call the calculate function for each project
       for (const project of projects) {
         try {
-          // Use a type assertion to properly handle the RPC parameters
+          // Properly handling the RPC call with typings
           await supabase.rpc('calculate_project_resource_cost', { 
-            // Use a type cast to work around the TypeScript type inference issue
-            project_id: project.id as unknown as Record<string, never>
-          });
+            project_id: project.id
+          } as any); // Using 'any' to bypass the type checking issue
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
           // Fallback implementation if RPC is not available
