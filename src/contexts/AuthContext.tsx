@@ -132,6 +132,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (existingProfile) {
         console.log('Found existing profile:', existingProfile);
+
+        // Check if user is active before setting profile
+        if (existingProfile.is_active === false) {
+          toast({
+            title: 'Account Pending Approval',
+            description: 'Your account is pending approval from an administrator.',
+            variant: 'destructive',
+          });
+          await signOut();
+          return;
+        }
+
         setProfile(existingProfile as unknown as UserProfile);
       } else {
         console.warn('No profile found for user:', userId);
@@ -153,14 +165,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Create a default profile with user data
+      // Create a default profile with user data - set is_active to false for admin approval
       const newProfile = {
         id: userId,
         first_name: userData.user.user_metadata?.first_name || '',
         last_name: userData.user.user_metadata?.last_name || '',
         email: userData.user.email,
         role: 'user',
-        avatar_url: null
+        avatar_url: null,
+        is_active: false // Requires admin approval
       };
       
       console.log('Creating new profile:', newProfile);
@@ -174,8 +187,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw insertError;
       }
       
-      setProfile(newProfile as UserProfile);
-      console.log('Profile created successfully');
+      // Don't set the profile for new users since they need approval
+      // Instead, show a toast and sign them out
+      toast({
+        title: 'Registration Complete',
+        description: 'Your account has been created but requires admin approval. You will be notified when your account is approved.',
+        duration: 6000,
+      });
+      
+      // Sign out the user after registration since they need approval
+      setTimeout(() => signOut(), 3000);
+      
+      console.log('Profile created successfully, awaiting approval');
     } catch (error) {
       console.error('Error in profile creation:', error);
     }
@@ -198,11 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) throw error;
 
-      navigate('/');
-      toast({
-        title: 'Welcome back!',
-        description: 'You have successfully signed in.',
-      });
+      // Redirect happens in useEffect after successfully fetching profile
     } catch (error: any) {
       toast({
         title: 'Error signing in',
@@ -232,8 +251,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       toast({
         title: 'Account created!',
-        description: 'Check your email for the confirmation link.',
+        description: 'Your account has been created and is pending approval from an administrator.',
+        duration: 6000,
       });
+
+      navigate('/auth');
       
     } catch (error: any) {
       toast({

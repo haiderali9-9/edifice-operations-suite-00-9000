@@ -32,7 +32,9 @@ import TeamMemberForm from "@/components/team/TeamMemberForm";
 import TeamMemberProfile from "@/components/team/TeamMemberProfile";
 import TeamMemberEdit from "@/components/team/TeamMemberEdit";
 import TeamMemberProjects from "@/components/team/TeamMemberProjects";
+import PendingUserRequests from "@/components/team/PendingUserRequests";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TeamMember {
   id: string;
@@ -51,6 +53,7 @@ const Team = () => {
   const { toast } = useToast();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isAdmin } = useAuth();
   
   // State for member actions
   const [viewProfileMemberId, setViewProfileMemberId] = useState<string | null>(null);
@@ -64,7 +67,8 @@ const Team = () => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('*');
+          .select('*')
+          .eq('is_active', true);
         
         if (error) throw error;
         
@@ -107,7 +111,8 @@ const Team = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*');
+        .select('*')
+        .eq('is_active', true);
       
       if (error) throw error;
       
@@ -140,8 +145,11 @@ const Team = () => {
             Manage and coordinate your team members
           </p>
         </div>
-        <TeamMemberForm onMemberAdded={handleMemberAdded} />
+        {isAdmin && <TeamMemberForm onMemberAdded={handleMemberAdded} />}
       </div>
+
+      {/* Show pending user requests section only for admins */}
+      {isAdmin && <PendingUserRequests />}
 
       <Card className="mb-6">
         <CardContent className="p-6">
@@ -227,9 +235,11 @@ const Team = () => {
                             <DropdownMenuItem onClick={() => handleViewProfile(member)}>
                               View Profile
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditMember(member)}>
-                              Edit Member
-                            </DropdownMenuItem>
+                            {isAdmin && (
+                              <DropdownMenuItem onClick={() => handleEditMember(member)}>
+                                Edit Member
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => handleViewProjects(member)}>
                               View Projects
                             </DropdownMenuItem>
