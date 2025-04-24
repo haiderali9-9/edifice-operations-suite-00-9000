@@ -41,10 +41,8 @@ const Finances = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   
-  // Function to recalculate resource costs for all projects
   const recalculateResourceCosts = async () => {
     try {
-      // Get all projects
       const { data: projects, error: projectError } = await supabase
         .from('projects')
         .select('id');
@@ -52,21 +50,15 @@ const Finances = () => {
       if (projectError) throw projectError;
       if (!projects || projects.length === 0) return;
       
-      // Call the calculate function for each project
       for (const project of projects) {
         try {
-          // Properly handling the RPC call with typings
-          await supabase.rpc('calculate_project_resource_cost', { 
-            project_id: project.id
-          } as any); // Using 'any' to bypass the type checking issue
+          const params: { project_id: string } = { project_id: project.id };
+          await supabase.rpc('calculate_project_resource_cost', params);
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
-          // Fallback implementation if RPC is not available
-          // You would implement direct calculation and update logic here
         }
       }
       
-      // Refresh the data
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast({
         title: "Budget updated",
@@ -82,7 +74,6 @@ const Finances = () => {
     }
   };
   
-  // Fetch projects data
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
@@ -95,7 +86,6 @@ const Finances = () => {
     }
   });
   
-  // Fetch financial transactions
   const { data: transactions, isLoading: transactionsLoading } = useQuery({
     queryKey: ['financial_transactions'],
     queryFn: async () => {
@@ -126,7 +116,6 @@ const Finances = () => {
     }
   });
   
-  // Fetch invoices
   const { data: invoices, isLoading: invoicesLoading } = useQuery({
     queryKey: ['invoices'],
     queryFn: async () => {
@@ -149,7 +138,6 @@ const Finances = () => {
     }
   });
 
-  // Invoice status update mutation
   const updateInvoiceStatus = useMutation({
     mutationFn: async ({ invoiceId, newStatus }: { invoiceId: string, newStatus: Invoice['status'] }) => {
       const { error } = await supabase
@@ -174,7 +162,6 @@ const Finances = () => {
   };
   
   const handleAddTransaction = () => {
-    // Will be implemented with a form modal
     toast({
       title: "Add Transaction",
       description: "Transaction form will appear here",
@@ -188,21 +175,16 @@ const Finances = () => {
     }).format(amount);
   };
   
-  // Calculate total budget
   const totalBudget = projects?.reduce((sum, project) => sum + (project.budget || 0), 0) || 0;
   
-  // Calculate total spent
   const totalSpent = projects?.reduce((sum, project) => sum + (project.resources_cost || 0), 0) || 0;
   
-  // Calculate remaining budget
   const totalRemaining = totalBudget - totalSpent;
   
-  // Calculate total revenue (from income transactions)
   const totalRevenue = transactions
     ?.filter(t => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0) || 0;
   
-  // Format project budget data for display
   const projectBudgets = projects?.map(project => ({
     id: project.id,
     project: project.name,
@@ -211,11 +193,10 @@ const Finances = () => {
     remaining: (project.budget || 0) - (project.resources_cost || 0)
   })) || [];
 
-  // Automatically recalculate resource costs on component mount
   useEffect(() => {
     recalculateResourceCosts();
   }, []);
-  
+
   return (
     <PageLayout>
       <div className="mb-6 flex justify-between items-center">
@@ -352,7 +333,6 @@ const Finances = () => {
                                 <Progress 
                                   value={utilizationPercentage} 
                                   className="h-2"
-                                  // @ts-ignore - indicatorClassName is supported
                                   indicatorClassName={utilizationColor} 
                                 />
                                 <span className="text-sm">{utilizationPercentage}%</span>
