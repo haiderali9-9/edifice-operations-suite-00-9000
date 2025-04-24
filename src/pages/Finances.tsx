@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,9 +56,9 @@ const Finances = () => {
       // Call the calculate function for each project
       for (const project of projects) {
         try {
-          // Explicitly type the project.id as a string
+          // Fix the TypeScript error by using a type assertion for the RPC parameters
           await supabase.rpc('calculate_project_resource_cost', { 
-            project_id: project.id 
+            project_id: project.id as string
           });
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
