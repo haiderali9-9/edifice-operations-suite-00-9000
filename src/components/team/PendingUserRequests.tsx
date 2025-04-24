@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -32,14 +31,44 @@ const PendingUserRequests: React.FC = () => {
   const fetchPendingUsers = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // First fetch inactive profiles
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('is_active', false);
 
-      if (error) throw error;
+      if (profilesError) throw profilesError;
       
-      setPendingUsers(data as PendingUser[]);
+      if (!profilesData || profilesData.length === 0) {
+        setPendingUsers([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Then fetch the corresponding auth users to get emails
+      // We need to do this because emails are stored in auth.users which we can't join directly
+      const userIds = profilesData.map(profile => profile.id);
+      
+      // Get emails from auth.users through admin function
+      const { data: usersWithEmails, error: usersError } = await supabase
+        .rpc('get_users_with_emails', { user_ids: userIds });
+      
+      if (usersError) {
+        console.error("Error fetching user emails:", usersError);
+        // Continue with profiles data even if we couldn't get emails
+        setPendingUsers(profilesData as PendingUser[]);
+      } else if (usersWithEmails) {
+        // Merge profile data with email data
+        const enhancedUsers = profilesData.map(profile => {
+          const userWithEmail = usersWithEmails.find(user => user.id === profile.id);
+          return {
+            ...profile,
+            email: userWithEmail?.email || profile.email || 'Email not available'
+          };
+        });
+        
+        setPendingUsers(enhancedUsers as PendingUser[]);
+      }
     } catch (error) {
       console.error('Error fetching pending users:', error);
       toast({

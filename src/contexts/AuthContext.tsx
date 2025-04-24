@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log('Auth state changed:', event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
@@ -158,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function createProfile(userId: string) {
     try {
       // Get user data
-      const { data: userData } = await supabase.auth.getUser(userId);
+      const { data: userData } = await supabase.auth.getUser();
       
       if (!userData?.user) {
         console.error('Could not find user data for profile creation');
@@ -243,15 +244,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             first_name: firstName,
             last_name: lastName,
-          }
+          },
+          emailRedirectTo: window.location.origin + '/auth' // Ensure proper redirect after verification
         }
       });
       
       if (error) throw error;
       
       toast({
-        title: 'Account created!',
-        description: 'Your account has been created and is pending approval from an administrator.',
+        title: 'Verification Email Sent!',
+        description: 'Please check your inbox and verify your email. After verification, an administrator will need to approve your account.',
         duration: 6000,
       });
 
