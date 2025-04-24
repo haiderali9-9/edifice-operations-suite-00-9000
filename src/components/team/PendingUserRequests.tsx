@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -14,15 +15,13 @@ import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { Database } from '@/integrations/supabase/types';
 
-interface PendingUser {
-  id: string;
-  first_name: string;
-  last_name: string;
+type PendingUser = Database['public']['Tables']['profiles']['Row'] & {
   email: string;
-  created_at: string;
-  is_active: boolean;
-}
+};
+
+type UserRole = Database['public']['Enums']['app_role'];
 
 const PendingUserRequests: React.FC = () => {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
@@ -33,7 +32,6 @@ const PendingUserRequests: React.FC = () => {
   const fetchPendingUsers = async () => {
     setIsLoading(true);
     try {
-      // Get users without an active role (or with is_active=false)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -58,7 +56,7 @@ const PendingUserRequests: React.FC = () => {
     fetchPendingUsers();
   }, []);
 
-  const approveUser = async (userId: string, role: string) => {
+  const approveUser = async (userId: string, role: UserRole) => {
     setProcessingUsers(prev => ({ ...prev, [userId]: true }));
     try {
       // Update is_active status
@@ -72,14 +70,17 @@ const PendingUserRequests: React.FC = () => {
       // Set the user role
       const { error: roleError } = await supabase
         .from('user_roles')
-        .insert({ user_id: userId, role: role });
+        .insert({ 
+          user_id: userId, 
+          role: role as 'user' | 'admin' 
+        });
         
       if (roleError) {
         // If the user already has a role assigned, update it
         if (roleError.code === '23505') { // Unique violation error code
           const { error: updateError } = await supabase
             .from('user_roles')
-            .update({ role: role })
+            .update({ role: role as 'user' | 'admin' })
             .eq('user_id', userId);
           
           if (updateError) throw updateError;
@@ -181,7 +182,9 @@ const PendingUserRequests: React.FC = () => {
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
-                    <Select onValueChange={(value) => approveUser(user.id, value)}>
+                    <Select 
+                      onValueChange={(value: UserRole) => approveUser(user.id, value)}
+                    >
                       <SelectTrigger className="w-32">
                         <SelectValue placeholder="Select role" />
                       </SelectTrigger>
