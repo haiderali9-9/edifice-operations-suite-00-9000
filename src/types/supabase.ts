@@ -1,3 +1,4 @@
+
 export type Json =
   | string
   | number
@@ -293,6 +294,131 @@ export interface Database {
           created_at?: string | null
           created_by?: string | null
           notes?: string | null
+        }
+      }
+      documents: {
+        Row: {
+          id: string
+          name: string
+          type: string
+          url: string
+          project_id: string | null
+          upload_date: string
+          uploaded_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          type: string
+          url: string
+          project_id?: string | null
+          upload_date?: string
+          uploaded_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          type?: string
+          url?: string
+          project_id?: string | null
+          upload_date?: string
+          uploaded_by?: string | null
+          created_at?: string
+        }
+      }
+      issues: {
+        Row: {
+          id: string
+          project_id: string
+          title: string
+          description: string | null
+          status: string
+          priority: string
+          report_date: string
+          resolution_date: string | null
+          reported_by: string | null
+          assigned_to: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          title: string
+          description?: string | null
+          status?: string
+          priority?: string
+          report_date?: string
+          resolution_date?: string | null
+          reported_by?: string | null
+          assigned_to?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          title?: string
+          description?: string | null
+          status?: string
+          priority?: string
+          report_date?: string
+          resolution_date?: string | null
+          reported_by?: string | null
+          assigned_to?: string | null
+          created_at?: string
+        }
+      }
+      tasks: {
+        Row: {
+          id: string
+          project_id: string
+          name: string
+          description: string | null
+          status: string
+          priority: string
+          start_date: string | null
+          end_date: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          name: string
+          description?: string | null
+          status?: string
+          priority?: string
+          start_date?: string | null
+          end_date?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          name?: string
+          description?: string | null
+          status?: string
+          priority?: string
+          start_date?: string | null
+          end_date?: string | null
+          created_at?: string
+        }
+      }
+      task_assignments: {
+        Row: {
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          user_id?: string
         }
       }
     }
