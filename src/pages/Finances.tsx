@@ -52,7 +52,10 @@ const Finances = () => {
       
       for (const project of projects) {
         try {
-          const params: { project_id: string } = { project_id: project.id };
+          type CalcParams = {
+            project_id: string;
+          };
+          const params: CalcParams = { project_id: project.id };
           await supabase.rpc('calculate_project_resource_cost', params);
         } catch (error) {
           console.error('RPC function not available, using direct update fallback:', error);
