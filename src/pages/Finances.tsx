@@ -46,15 +46,15 @@ const Finances = () => {
   const recalculateResourceCosts = async () => {
     try {
       // Get all projects
-      const { data: projects } = await supabase
+      const { data: projects, error: projectError } = await supabase
         .from('projects')
         .select('id');
       
+      if (projectError) throw projectError;
       if (!projects || projects.length === 0) return;
       
       // Call the calculate function for each project
       for (const project of projects) {
-        // Use rpc with correct typing or fallback to a direct query if needed
         try {
           // First try using RPC if available
           await supabase.rpc('calculate_project_resource_cost', { 
