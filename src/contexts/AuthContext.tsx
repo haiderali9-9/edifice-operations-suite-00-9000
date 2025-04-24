@@ -16,12 +16,14 @@ interface UserProfile {
   phone?: string | null;
   position?: string | null;
   department?: string | null;
+  is_active?: boolean;
 }
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: UserProfile | null;
+  isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
@@ -36,9 +38,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Function to check if the user is an admin
+  const checkAdminStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .rpc('is_admin');
+      
+      if (error) throw error;
+      
+      setIsAdmin(data || false);
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -52,15 +70,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Use setTimeout to avoid potential auth deadlocks
             setTimeout(() => {
               fetchProfile(currentSession.user.id);
+              checkAdminStatus(currentSession.user.id);
             }, 0);
           } catch (error) {
             console.error('Error fetching profile during auth change:', error);
           } finally {
-            // Ensure loading state is updated even if profile fetch fails
             setIsLoading(false);
           }
         } else {
           setProfile(null);
+          setIsAdmin(false);
           setIsLoading(false);
         }
       }
@@ -72,11 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
-        fetchProfile(currentSession.user.id).catch(error => {
-          console.error('Error fetching profile during initial load:', error);
-        }).finally(() => {
-          setIsLoading(false);
-        });
+        fetchProfile(currentSession.user.id)
+          .catch(error => {
+            console.error('Error fetching profile during initial load:', error);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
+        checkAdminStatus(currentSession.user.id);
       } else {
         setIsLoading(false);
       }
@@ -273,6 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     user,
     profile,
+    isAdmin,
     isLoading,
     signIn,
     signUp,

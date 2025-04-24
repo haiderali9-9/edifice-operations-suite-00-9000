@@ -1,4 +1,3 @@
-
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -7,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RequireAuth from "./components/auth/RequireAuth";
+import RequireAdmin from "./components/auth/RequireAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import Index from "./pages/Index";
@@ -57,20 +57,25 @@ const App: React.FC = () => {
                 {/* Public routes */}
                 <Route path="/auth" element={<Auth />} />
                 
-                {/* Protected routes */}
+                {/* Protected routes - require authentication */}
                 <Route element={<RequireAuth />}>
                   <Route path="/" element={<Index />} />
-                  <Route path="/projects" element={<Projects />} />
+                  
+                  {/* Regular user routes */}
                   <Route path="/projects/:projectId" element={<ProjectDetails />} />
                   <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/resources" element={<Resources />} />
-                  <Route path="/team" element={<Team />} />
-                  <Route path="/finances" element={<Finances />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/documents" element={<Documents />} />
-                  {/* Using regular import for Issues instead of lazy loaded */}
                   <Route path="/issues" element={<Issues />} />
-                  <Route path="/settings" element={<Settings />} />
+                  
+                  {/* Admin-only routes */}
+                  <Route element={<RequireAdmin />}>
+                    <Route path="/projects" element={<Projects />} />
+                    <Route path="/resources" element={<Resources />} />
+                    <Route path="/team" element={<Team />} />
+                    <Route path="/finances" element={<Finances />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
                 </Route>
                 
                 {/* Catch all route */}
