@@ -208,6 +208,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string
+          read: boolean | null
+          related_entity_id: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          related_entity_id?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          related_entity_id?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -634,6 +670,16 @@ export type Database = {
         Args: { user_email: string }
         Returns: undefined
       }
+      create_notification: {
+        Args: {
+          p_user_id: string
+          p_type: Database["public"]["Enums"]["notification_type"]
+          p_title: string
+          p_message: string
+          p_related_entity_id?: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _user_id: string
@@ -648,6 +694,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      notification_type:
+        | "task_assigned"
+        | "project_assigned"
+        | "user_login"
+        | "resource_assigned"
+        | "issue_assigned"
+        | "team_added"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -764,6 +817,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      notification_type: [
+        "task_assigned",
+        "project_assigned",
+        "user_login",
+        "resource_assigned",
+        "issue_assigned",
+        "team_added",
+      ],
     },
   },
 } as const
