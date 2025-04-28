@@ -51,8 +51,26 @@ serve(async (req) => {
       );
     }
     
+    // Create a client with the user's JWT to check if they're an admin
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+          detectSessionInUrl: false,
+        },
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    );
+    
     // Check if the user is an admin
-    const { data: isAdmin, error: adminCheckError } = await supabaseAdmin.rpc('is_admin');
+    const { data: isAdmin, error: adminCheckError } = await supabaseClient.rpc('is_admin');
     
     if (adminCheckError || !isAdmin) {
       return new Response(
@@ -62,7 +80,17 @@ serve(async (req) => {
     }
     
     // Get the request body (user IDs)
-    const { userIds } = await req.json();
+    let requestData;
+    try {
+      requestData = await req.json();
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { userIds } = requestData;
     
     if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return new Response(
@@ -73,12 +101,28 @@ serve(async (req) => {
     
     // Query auth.users table to get emails (only possible with service role)
     const { data: users, error: usersError } = await supabaseAdmin
-      .from('users')
+      .from('auth.users')
       .select('id, email')
       .in('id', userIds);
       
     if (usersError) {
-      throw usersError;
+      // The query might fail because "auth.users" is not directly accessible
+      // Try to query one by one
+      let users = [];
+      for (const userId of userIds) {
+        const { data: userData, error: userDataError } = await supabaseAdmin.auth.admin.getUserById(userId);
+        if (!userDataError && userData) {
+          users.push({
+            id: userData.user.id,
+            email: userData.user.email
+          });
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ users }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
     return new Response(

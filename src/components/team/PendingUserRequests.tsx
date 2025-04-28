@@ -46,24 +46,31 @@ const PendingUserRequests: React.FC = () => {
       }
       
       // Then fetch the corresponding auth users to get emails
-      // We need to do this because emails are stored in auth.users which we can't join directly
       const userIds = profilesData.map(profile => profile.id);
       
-      // Get emails from auth.users through admin function
-      const { data: usersWithEmails, error: usersError } = await supabase
-        .rpc('get_users_with_emails', { user_ids: userIds });
+      // Using the Edge Function instead of RPC
+      const response = await fetch('/api/get-user-emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        },
+        body: JSON.stringify({ userIds })
+      });
       
-      if (usersError) {
-        console.error("Error fetching user emails:", usersError);
+      if (!response.ok) {
+        console.error('Error fetching user emails:', await response.text());
         // Continue with profiles data even if we couldn't get emails
         setPendingUsers(profilesData as PendingUser[]);
-      } else if (usersWithEmails) {
+      } else {
+        const { users } = await response.json();
+        
         // Merge profile data with email data
         const enhancedUsers = profilesData.map(profile => {
-          const userWithEmail = usersWithEmails.find(user => user.id === profile.id);
+          const userWithEmail = users.find((user: any) => user.id === profile.id);
           return {
             ...profile,
-            email: userWithEmail?.email || profile.email || 'Email not available'
+            email: userWithEmail?.email || 'Email not available'
           };
         });
         
@@ -101,7 +108,7 @@ const PendingUserRequests: React.FC = () => {
         .from('user_roles')
         .insert({ 
           user_id: userId, 
-          role: role as 'user' | 'admin' 
+          role: role
         });
         
       if (roleError) {
@@ -109,7 +116,7 @@ const PendingUserRequests: React.FC = () => {
         if (roleError.code === '23505') { // Unique violation error code
           const { error: updateError } = await supabase
             .from('user_roles')
-            .update({ role: role as 'user' | 'admin' })
+            .update({ role: role })
             .eq('user_id', userId);
           
           if (updateError) throw updateError;

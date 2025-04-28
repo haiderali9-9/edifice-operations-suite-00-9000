@@ -52,9 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       setIsAdmin(data || false);
+      return data || false;
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
+      return false;
     }
   };
 
@@ -114,6 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Fetching profile for user:', userId);
       
+      // First, check if the user is an admin
+      const isUserAdmin = await checkAdminStatus(userId);
+      
       const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -134,8 +139,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (existingProfile) {
         console.log('Found existing profile:', existingProfile);
 
-        // Check if user is active before setting profile
-        if (existingProfile.is_active === false) {
+        // Check if user is active or is an admin (admins bypass approval)
+        if (existingProfile.is_active === false && !isUserAdmin) {
           toast({
             title: 'Account Pending Approval',
             description: 'Your account is pending approval from an administrator.',
@@ -145,7 +150,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        setProfile(existingProfile as unknown as UserProfile);
+        // If they are an admin but not active, make them active
+        if (isUserAdmin && existingProfile.is_active === false) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ is_active: true })
+            .eq('id', userId);
+            
+          if (updateError) {
+            console.error('Error updating admin profile to active:', updateError);
+          }
+          
+          // Update the local profile
+          setProfile({
+            ...existingProfile as unknown as UserProfile,
+            is_active: true,
+          });
+        } else {
+          setProfile(existingProfile as unknown as UserProfile);
+        }
       } else {
         console.warn('No profile found for user:', userId);
         await createProfile(userId);
@@ -166,7 +189,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Create a default profile with user data - set is_active to false for admin approval
+      // Check if the user is first user (to make them admin) or determine if they're already an admin
+      const { count: userCount, error: countError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      // If this is the first user in the system or they're already an admin, make them active automatically
+      const isFirstUser = (!countError && userCount === 0);
+      const isUserAdmin = await checkAdminStatus(userId);
+      const shouldBeActive = isFirstUser || isUserAdmin;
+      
+      // Create the profile with is_active set appropriately
       const newProfile = {
         id: userId,
         first_name: userData.user.user_metadata?.first_name || '',
@@ -174,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: userData.user.email,
         role: 'user',
         avatar_url: null,
-        is_active: false // Requires admin approval
+        is_active: shouldBeActive // Active if first user or admin
       };
       
       console.log('Creating new profile:', newProfile);
@@ -188,18 +221,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw insertError;
       }
       
-      // Don't set the profile for new users since they need approval
-      // Instead, show a toast and sign them out
-      toast({
-        title: 'Registration Complete',
-        description: 'Your account has been created but requires admin approval. You will be notified when your account is approved.',
-        duration: 6000,
-      });
+      // If this is the first user or an admin, make them an admin and set their profile
+      if (shouldBeActive) {
+        // Add admin role
+        const { error: roleError } = await supabase
+          .from('user_roles')
+          .insert({
+            user_id: userId,
+            role: 'admin'
+          });
+          
+        if (roleError && roleError.code !== '23505') { // Ignore unique violation errors
+          console.error('Error adding admin role:', roleError);
+        }
+        
+        setProfile(newProfile as UserProfile);
+        setIsAdmin(true);
+        
+        toast({
+          title: 'Account Created',
+          description: 'Your administrator account has been set up successfully.',
+          duration: 6000,
+        });
+      } else {
+        // For regular users, sign them out and show the pending approval message
+        toast({
+          title: 'Registration Complete',
+          description: 'Your account has been created but requires admin approval. You will be notified when your account is approved.',
+          duration: 6000,
+        });
+        
+        // Sign out the user after registration since they need approval
+        setTimeout(() => signOut(), 3000);
+      }
       
-      // Sign out the user after registration since they need approval
-      setTimeout(() => signOut(), 3000);
-      
-      console.log('Profile created successfully, awaiting approval');
+      console.log('Profile created successfully');
     } catch (error) {
       console.error('Error in profile creation:', error);
     }
