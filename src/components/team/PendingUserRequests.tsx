@@ -31,49 +31,68 @@ const PendingUserRequests: React.FC = () => {
   const fetchPendingUsers = async () => {
     setIsLoading(true);
     try {
+      console.log('Fetching pending users...');
       // First fetch inactive profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .eq('is_active', false);
 
-      if (profilesError) throw profilesError;
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
       
       if (!profilesData || profilesData.length === 0) {
+        console.log('No pending users found');
         setPendingUsers([]);
         setIsLoading(false);
         return;
       }
       
+      console.log('Found pending profiles:', profilesData);
+      
       // Then fetch the corresponding auth users to get emails
       const userIds = profilesData.map(profile => profile.id);
       
-      // Using the Edge Function instead of RPC
-      const response = await fetch('/api/get-user-emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        },
-        body: JSON.stringify({ userIds })
+      // Get the current session for auth header
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      
+      if (!accessToken) {
+        console.error('No access token available');
+        throw new Error('Authentication required');
+      }
+      
+      console.log('Calling get-user-emails edge function with user IDs:', userIds);
+      
+      // Using the Edge Function to get user emails
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('get-user-emails', {
+        body: { userIds },
       });
       
-      if (!response.ok) {
-        console.error('Error fetching user emails:', await response.text());
+      if (functionError) {
+        console.error('Error invoking get-user-emails function:', functionError);
         // Continue with profiles data even if we couldn't get emails
         setPendingUsers(profilesData as PendingUser[]);
+        toast({
+          title: 'Warning',
+          description: 'Could not fetch user emails',
+          variant: 'destructive',
+        });
       } else {
-        const { users } = await response.json();
+        console.log('Received function response:', functionData);
         
         // Merge profile data with email data
         const enhancedUsers = profilesData.map(profile => {
-          const userWithEmail = users.find((user: any) => user.id === profile.id);
+          const userWithEmail = functionData.users?.find((user: any) => user.id === profile.id);
           return {
             ...profile,
             email: userWithEmail?.email || 'Email not available'
           };
         });
         
+        console.log('Enhanced users with emails:', enhancedUsers);
         setPendingUsers(enhancedUsers as PendingUser[]);
       }
     } catch (error) {
@@ -95,13 +114,18 @@ const PendingUserRequests: React.FC = () => {
   const approveUser = async (userId: string, role: UserRole) => {
     setProcessingUsers(prev => ({ ...prev, [userId]: true }));
     try {
+      console.log(`Approving user ${userId} with role ${role}`);
+      
       // Update is_active status
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ is_active: true })
         .eq('id', userId);
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error updating profile:', profileError);
+        throw profileError;
+      }
 
       // Set the user role
       const { error: roleError } = await supabase
@@ -112,6 +136,7 @@ const PendingUserRequests: React.FC = () => {
         });
         
       if (roleError) {
+        console.error('Error setting role:', roleError);
         // If the user already has a role assigned, update it
         if (roleError.code === '23505') { // Unique violation error code
           const { error: updateError } = await supabase
@@ -119,7 +144,10 @@ const PendingUserRequests: React.FC = () => {
             .update({ role: role })
             .eq('user_id', userId);
           
-          if (updateError) throw updateError;
+          if (updateError) {
+            console.error('Error updating role:', updateError);
+            throw updateError;
+          }
         } else {
           throw roleError;
         }
@@ -148,6 +176,8 @@ const PendingUserRequests: React.FC = () => {
   const rejectUser = async (userId: string) => {
     setProcessingUsers(prev => ({ ...prev, [userId]: true }));
     try {
+      console.log(`Rejecting user ${userId}`);
+      
       // Keep the profile but mark it as rejected or remove it entirely
       // For this example, we'll keep it with a rejected flag
       const { error } = await supabase
@@ -155,7 +185,10 @@ const PendingUserRequests: React.FC = () => {
         .delete()
         .eq('id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting profile:', error);
+        throw error;
+      }
 
       toast({
         title: 'User Rejected',

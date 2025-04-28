@@ -46,7 +46,7 @@ serve(async (req) => {
     
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Unauthorized request' }),
+        JSON.stringify({ error: 'Unauthorized request', details: userError }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -74,7 +74,7 @@ serve(async (req) => {
     
     if (adminCheckError || !isAdmin) {
       return new Response(
-        JSON.stringify({ error: 'Admin access required' }),
+        JSON.stringify({ error: 'Admin access required', details: adminCheckError }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -99,30 +99,21 @@ serve(async (req) => {
       );
     }
     
-    // Query auth.users table to get emails (only possible with service role)
-    const { data: users, error: usersError } = await supabaseAdmin
-      .from('auth.users')
-      .select('id, email')
-      .in('id', userIds);
-      
-    if (usersError) {
-      // The query might fail because "auth.users" is not directly accessible
-      // Try to query one by one
-      let users = [];
-      for (const userId of userIds) {
+    // Get user emails individually using getUserById
+    const users = [];
+    for (const userId of userIds) {
+      try {
         const { data: userData, error: userDataError } = await supabaseAdmin.auth.admin.getUserById(userId);
-        if (!userDataError && userData) {
+        if (!userDataError && userData && userData.user) {
           users.push({
             id: userData.user.id,
             email: userData.user.email
           });
         }
+      } catch (error) {
+        console.error(`Error fetching user ${userId}:`, error);
+        // Continue to next user even if one fails
       }
-      
-      return new Response(
-        JSON.stringify({ users }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
     
     return new Response(
@@ -133,7 +124,7 @@ serve(async (req) => {
     console.error('Error in get-user-emails function:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message || 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
