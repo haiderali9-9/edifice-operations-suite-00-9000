@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Building } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const [email, setEmail] = useState('');
@@ -17,6 +18,7 @@ const Auth = () => {
   const [activeTab, setActiveTab] = useState('login');
   const { signIn, signUp, user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     // If user is already logged in, redirect to dashboard
@@ -27,20 +29,42 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast({
+        title: 'Missing Fields',
+        description: 'Please enter both email and password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       await signIn(email, password);
-    } catch (error) {
-      console.error("Sign-in error:", error);
+      // Redirect handled in useEffect when user is set
+    } catch (error: any) {
+      console.error("Sign-in error in component:", error);
+      // Error toast is shown in the signIn function
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email || !password || !firstName || !lastName) {
+      toast({
+        title: 'Missing Fields',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
     try {
       await signUp(email, password, firstName, lastName);
       setActiveTab('login');
     } catch (error) {
-      console.error("Sign-up error:", error);
+      console.error("Sign-up error in component:", error);
+      // Error toast is shown in the signUp function
     }
   };
 

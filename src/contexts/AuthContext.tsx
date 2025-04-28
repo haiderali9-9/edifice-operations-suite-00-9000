@@ -49,7 +49,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase
         .rpc('is_admin');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error checking admin status:', error);
+        return false;
+      }
       
       setIsAdmin(data || false);
       return data || false;
@@ -63,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
         console.log('Auth state changed:', event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
@@ -205,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         first_name: userData.user.user_metadata?.first_name || '',
         last_name: userData.user.user_metadata?.last_name || '',
         email: userData.user.email,
-        role: 'user',
+        role: isFirstUser ? 'admin' : 'user',  // First user gets admin role
         avatar_url: null,
         is_active: shouldBeActive // Active if first user or admin
       };
@@ -221,8 +224,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw insertError;
       }
       
-      // If this is the first user or an admin, make them an admin and set their profile
-      if (shouldBeActive) {
+      // If this is the first user, make them an admin
+      if (isFirstUser) {
         // Add admin role
         const { error: roleError } = await supabase
           .from('user_roles')
@@ -243,8 +246,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: 'Your administrator account has been set up successfully.',
           duration: 6000,
         });
+      } else if (shouldBeActive) {
+        // For regular users who are already admins
+        setProfile(newProfile as UserProfile);
+        setIsAdmin(true);
+        
+        toast({
+          title: 'Account Created',
+          description: 'Your account has been set up successfully.',
+          duration: 6000,
+        });
       } else {
-        // For regular users, sign them out and show the pending approval message
+        // For regular users, show the pending approval message
         toast({
           title: 'Registration Complete',
           description: 'Your account has been created but requires admin approval. You will be notified when your account is approved.',
@@ -252,12 +265,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         
         // Sign out the user after registration since they need approval
-        setTimeout(() => signOut(), 3000);
+        await signOut();
       }
       
       console.log('Profile created successfully');
     } catch (error) {
       console.error('Error in profile creation:', error);
+      throw error; // Re-throw the error to be caught by the caller
     }
   }
 
@@ -274,20 +288,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signIn(email: string, password: string) {
     try {
       setIsLoading(true);
-      // Remove any code that might be creating notifications during sign-in
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       
-      if (error) throw error;
+      if (error) {
+        console.error("Sign-in error:", error);
+        throw error;
+      }
 
+      // Authentication successful, profile fetch happens in the onAuthStateChange listener
+      console.log("Sign-in successful:", data);
+      
       // Redirect happens in useEffect after successfully fetching profile
     } catch (error: any) {
+      setIsLoading(false);
       toast({
         title: 'Error signing in',
         description: error.message,
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   }
 
@@ -333,6 +351,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signOut();
       
       if (error) throw error;
+      
+      // Clear state
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setIsAdmin(false);
       
       navigate('/auth');
     } catch (error: any) {
