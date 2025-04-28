@@ -27,13 +27,21 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signIn(email, password);
+    try {
+      await signIn(email, password);
+    } catch (error) {
+      console.error("Sign-in error:", error);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUp(email, password, firstName, lastName);
-    setActiveTab('login');
+    try {
+      await signUp(email, password, firstName, lastName);
+      setActiveTab('login');
+    } catch (error) {
+      console.error("Sign-up error:", error);
+    }
   };
 
   return (
@@ -78,9 +86,6 @@ const Auth = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="password">Password</Label>
-                      {/* <Link to="/forgot-password" className="text-sm text-construction-600">
-                        Forgot password?
-                      </Link> */}
                     </div>
                     <Input 
                       id="password" 

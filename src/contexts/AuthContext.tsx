@@ -274,6 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signIn(email: string, password: string) {
     try {
       setIsLoading(true);
+      // Remove any code that might be creating notifications during sign-in
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) throw error;

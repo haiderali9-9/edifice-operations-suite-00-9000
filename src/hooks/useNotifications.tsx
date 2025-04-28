@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export interface Notification {
   id: string;
-  type: 'task_assigned' | 'project_assigned' | 'user_login' | 'resource_assigned' | 'issue_assigned' | 'team_added';
+  type: string; // Modified to accept string rather than specific enum values
   title: string;
   message: string;
   read: boolean;

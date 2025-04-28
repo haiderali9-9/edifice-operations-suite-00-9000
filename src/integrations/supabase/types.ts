@@ -217,7 +217,6 @@ export type Database = {
           read: boolean | null
           related_entity_id: string | null
           title: string
-          type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
         Insert: {
@@ -228,7 +227,6 @@ export type Database = {
           read?: boolean | null
           related_entity_id?: string | null
           title: string
-          type: Database["public"]["Enums"]["notification_type"]
           user_id: string
         }
         Update: {
@@ -239,7 +237,6 @@ export type Database = {
           read?: boolean | null
           related_entity_id?: string | null
           title?: string
-          type?: Database["public"]["Enums"]["notification_type"]
           user_id?: string
         }
         Relationships: []
@@ -669,16 +666,6 @@ export type Database = {
       assign_admin_role: {
         Args: { user_email: string }
         Returns: undefined
-      }
-      create_notification: {
-        Args: {
-          p_user_id: string
-          p_type: Database["public"]["Enums"]["notification_type"]
-          p_title: string
-          p_message: string
-          p_related_entity_id?: string
-        }
-        Returns: string
       }
       has_role: {
         Args: {
