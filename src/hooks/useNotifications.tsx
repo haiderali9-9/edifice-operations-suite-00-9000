@@ -39,7 +39,12 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newNotification = payload.new as Notification;
+          // Transform the payload to match our Notification interface
+          const newNotification: Notification = {
+            ...payload.new as any,
+            type: 'system_notification' // Default type if not provided
+          };
+          
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
           
@@ -67,8 +72,15 @@ export function useNotifications() {
 
       if (error) throw error;
 
-      setNotifications(data);
-      setUnreadCount(data.filter((n: Notification) => !n.read).length);
+      // Transform the data to match our Notification interface
+      const transformedData: Notification[] = data.map(item => ({
+        ...item,
+        type: 'system_notification', // Default type if not provided
+        read: item.read || false
+      }));
+
+      setNotifications(transformedData);
+      setUnreadCount(transformedData.filter(n => !n.read).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       toast({
