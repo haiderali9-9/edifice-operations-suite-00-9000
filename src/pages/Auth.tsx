@@ -27,12 +27,40 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  const validateEmail = (email: string) => {
+    return email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  };
+
+  const validatePassword = (password: string) => {
+    return password.length >= 6;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
+    
+    // Enhanced validation
+    if (!email) {
       toast({
-        title: 'Missing Fields',
-        description: 'Please enter both email and password.',
+        title: 'Email Required',
+        description: 'Please enter your email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!password) {
+      toast({
+        title: 'Password Required',
+        description: 'Please enter your password.',
         variant: 'destructive',
       });
       return;
@@ -50,10 +78,29 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Enhanced validation
     if (!email || !password || !firstName || !lastName) {
       toast({
         title: 'Missing Fields',
         description: 'Please fill in all required fields.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!validateEmail(email)) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    if (!validatePassword(password)) {
+      toast({
+        title: 'Password Too Short',
+        description: 'Password must be at least 6 characters long.',
         variant: 'destructive',
       });
       return;

@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener FIRST
+    // Set up auth state listener FIRST to avoid auth deadlocks
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
         console.log('Auth state changed:', event);
@@ -75,11 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             // Use setTimeout to avoid potential auth deadlocks
             setTimeout(() => {
-              fetchProfile(currentSession.user.id);
-              checkAdminStatus(currentSession.user.id);
+              fetchProfile(currentSession.user.id).catch(console.error);
+              checkAdminStatus(currentSession.user.id).catch(console.error);
             }, 0);
           } catch (error) {
-            console.error('Error fetching profile during auth change:', error);
+            console.error('Error in auth change handler:', error);
           } finally {
             setIsLoading(false);
           }
@@ -104,10 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .finally(() => {
             setIsLoading(false);
           });
-        checkAdminStatus(currentSession.user.id);
+        checkAdminStatus(currentSession.user.id).catch(console.error);
       } else {
         setIsLoading(false);
       }
+    }).catch(error => {
+      console.error('Error getting auth session:', error);
+      setIsLoading(false);
     });
 
     return () => {
@@ -178,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
-      throw error;
+      // Don't throw again, just log
     }
   }
 
@@ -221,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
       if (insertError) {
         console.error('Error creating profile:', insertError);
-        throw insertError;
+        // Don't throw again, continue with the code
       }
       
       // If this is the first user, make them an admin
@@ -271,7 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Profile created successfully');
     } catch (error) {
       console.error('Error in profile creation:', error);
-      throw error; // Re-throw the error to be caught by the caller
+      // Just log the error, don't throw it again
     }
   }
 
@@ -292,7 +295,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         console.error("Sign-in error:", error);
-        throw error;
+        toast({
+          title: 'Error signing in',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
       }
 
       // Authentication successful, profile fetch happens in the onAuthStateChange listener
@@ -303,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
       toast({
         title: 'Error signing in',
-        description: error.message,
+        description: error.message || 'An unexpected error occurred',
         variant: 'destructive',
       });
     }
@@ -324,7 +333,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       });
       
-      if (error) throw error;
+      if (error) {
+        toast({
+          title: 'Error creating account',
+          description: error.message,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
+      }
       
       toast({
         title: 'Verification Email Sent!',
@@ -337,7 +354,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       toast({
         title: 'Error creating account',
-        description: error.message,
+        description: error.message || 'An unexpected error occurred',
         variant: 'destructive',
       });
     } finally {
