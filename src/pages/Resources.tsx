@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import PageLayout from "@/components/layout/PageLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Resource } from "@/types";
-import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2, Pencil, RotateCcw, Clock, CalendarDays, DollarSign } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Box, Truck, Loader2, ArrowLeftRight, Trash2, Pencil, RotateCcw, Clock, CalendarDays, DollarSign, ShoppingCart } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -249,9 +248,14 @@ const Resources = () => {
             Manage materials, equipment, and labor resources
           </p>
         </div>
-        <Button className="bg-construction-700 hover:bg-construction-800" onClick={handleAddResource}>
-          <Plus className="h-4 w-4 mr-2" /> Add Resource
-        </Button>
+        <div className="flex space-x-3">
+          <Button className="bg-construction-700 hover:bg-construction-800" onClick={handleAddResource}>
+            <Plus className="h-4 w-4 mr-2" /> Add Resource
+          </Button>
+          <Button variant="outline" className="border-construction-700 text-construction-700 hover:bg-construction-50">
+            <ShoppingCart className="h-4 w-4 mr-2" /> View Marketplace
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
