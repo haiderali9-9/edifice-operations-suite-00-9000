@@ -51,7 +51,21 @@ const ProjectsOverview = ({ projects }: ProjectsOverviewProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <Progress value={project.completion} className="h-2" />
+                <Progress 
+                  value={project.completion} 
+                  className="h-2" 
+                  indicatorClassName={`${
+                    project.completion >= 100 
+                      ? 'bg-green-500' 
+                      : project.completion >= 75 
+                        ? 'bg-emerald-500' 
+                        : project.completion >= 50 
+                          ? 'bg-amber-500' 
+                          : project.completion >= 25 
+                            ? 'bg-orange-500' 
+                            : 'bg-red-500'
+                  }`} 
+                />
                 <span className="text-sm font-medium w-12 text-right">
                   {project.completion}%
                 </span>

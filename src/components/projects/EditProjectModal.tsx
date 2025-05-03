@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Project } from "@/types";
 import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { Loader2, InfoIcon } from "lucide-react";
+import { Progress } from "../ui/progress";
 
 interface EditProjectModalProps {
   isOpen: boolean;
@@ -44,7 +46,7 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
     end_date: project.end_date,
     budget: project.budget,
     status: project.status,
-    completion: project.completion,
+    // Don't include completion in formData as it's now automatically calculated
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -94,6 +96,9 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>
+              Update project details. Project completion is automatically calculated based on task completion.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
@@ -177,17 +182,24 @@ const EditProjectModal: React.FC<EditProjectModalProps> = ({
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="completion">Completion (%)</Label>
-                <Input
-                  id="completion"
-                  name="completion"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={formData.completion}
-                  onChange={handleNumberChange('completion')}
-                  required
-                />
+                <Label htmlFor="completion">Completion</Label>
+                <div className="flex items-center gap-2">
+                  <Progress
+                    value={project.completion}
+                    indicatorClassName={
+                      project.completion >= 100 
+                        ? 'bg-green-500' 
+                        : project.completion >= 50 
+                          ? 'bg-amber-500' 
+                          : 'bg-construction-600'
+                    }
+                  />
+                  <span className="text-sm font-medium">{project.completion}%</span>
+                </div>
+                <p className="text-xs text-gray-500 flex items-center mt-1">
+                  <InfoIcon className="h-3 w-3 mr-1" /> 
+                  Automatically calculated from tasks
+                </p>
               </div>
             </div>
             <div className="grid gap-2">

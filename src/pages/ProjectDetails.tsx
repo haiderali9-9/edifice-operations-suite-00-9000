@@ -103,6 +103,42 @@ const ProjectDetails = () => {
     enabled: !!projectId,
   });
   
+  // Calculate project progress based on completed tasks
+  useEffect(() => {
+    if (tasks && tasks.length > 0 && project) {
+      const completedTasks = tasks.filter(task => task.status === "Completed").length;
+      const totalTasks = tasks.length;
+      const completionPercentage = Math.round((completedTasks / totalTasks) * 100);
+      
+      // Only update if the completion percentage has changed
+      if (completionPercentage !== project.completion) {
+        updateProjectCompletion(completionPercentage);
+      }
+    }
+  }, [tasks, project]);
+
+  // Function to update project completion in Supabase
+  const updateProjectCompletion = async (completionPercentage: number) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ completion: completionPercentage })
+        .eq('id', projectId);
+      
+      if (error) throw error;
+      
+      // Refetch project data to update UI
+      refetchProject();
+    } catch (error) {
+      console.error("Error updating project completion:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update project completion.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   // If project not found, show error
   if (projectError || (!projectLoading && !project)) {
     return (
@@ -380,9 +416,9 @@ const ProjectDetails = () => {
         </CardHeader>
         <CardContent className="pt-4">
           <div className="space-y-2">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between items-center text-sm">
               <span className="font-medium">{project.completion}% Complete</span>
-              <span className="text-gray-500">{formatCurrency(project.budget * (project.completion / 100))} / {formatCurrency(project.budget)}</span>
+              <span className="text-gray-500">{completedTasks} of {totalTasks} tasks completed</span>
             </div>
             <Progress value={project.completion} indicatorClassName="bg-construction-600" />
           </div>
