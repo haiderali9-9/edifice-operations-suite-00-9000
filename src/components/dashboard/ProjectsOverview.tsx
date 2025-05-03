@@ -4,14 +4,60 @@ import { Project } from "@/types";
 import { Building, Calendar, MapPin } from "lucide-react";
 import { Progress } from "../ui/progress";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 interface ProjectsOverviewProps {
   projects: Project[];
 }
 
 const ProjectsOverview = ({ projects }: ProjectsOverviewProps) => {
+  // Fetch tasks for each project to calculate real completion percentage
+  const { data: projectsWithTasks = [] } = useQuery({
+    queryKey: ['projectsWithTasks'],
+    queryFn: async () => {
+      // Get project ids
+      const projectIds = projects.map(project => project.id);
+      
+      if (projectIds.length === 0) return projects;
+      
+      // Fetch tasks for each project
+      const { data: tasksData, error } = await supabase
+        .from('tasks')
+        .select('project_id, status')
+        .in('project_id', projectIds);
+      
+      if (error) throw error;
+      
+      // Calculate completion percentages based on tasks
+      return projects.map(project => {
+        const projectTasks = tasksData.filter(task => task.project_id === project.id);
+        const totalTasks = projectTasks.length;
+        
+        if (totalTasks === 0) {
+          // If no tasks, use the existing completion value
+          return project;
+        }
+        
+        const completedTasks = projectTasks.filter(task => task.status === 'Completed').length;
+        const calculatedCompletion = Math.round((completedTasks / totalTasks) * 100);
+        
+        return {
+          ...project,
+          completion: calculatedCompletion,
+          _totalTasks: totalTasks,
+          _completedTasks: completedTasks
+        };
+      });
+    },
+    // Only run this query if we have projects
+    enabled: projects.length > 0,
+    // Use the projects data as fallback
+    placeholderData: projects,
+  });
+
   // Sort projects by completion percentage (highest first)
-  const sortedProjects = [...projects]
+  const sortedProjects = [...projectsWithTasks]
     .sort((a, b) => b.completion - a.completion)
     .slice(0, 5); // Show top 5 projects
 
@@ -70,6 +116,12 @@ const ProjectsOverview = ({ projects }: ProjectsOverviewProps) => {
                   {project.completion}%
                 </span>
               </div>
+              {/* Show task count if available */}
+              {'_totalTasks' in project && (
+                <div className="text-xs text-gray-500">
+                  {(project as any)._completedTasks} of {(project as any)._totalTasks} tasks complete
+                </div>
+              )}
             </div>
           </Link>
         ))}
