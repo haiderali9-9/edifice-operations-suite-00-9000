@@ -1,3 +1,4 @@
+
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 
@@ -103,6 +104,22 @@ export interface Report {
   is_archived: boolean | null;
 }
 
+// Helper function to safely convert database data to our Report type
+function convertToReport(dbReport: any): Report {
+  return {
+    ...dbReport,
+    // Parse the JSON data to our ReportData type, with a fallback to null if invalid
+    data: dbReport.data ? dbReport.data as ReportData : null,
+    // Ensure the type is valid or default to "progress"
+    type: isValidReportType(dbReport.type) ? dbReport.type : "progress"
+  };
+}
+
+// Type guard to validate report type
+function isValidReportType(type: string): type is Report["type"] {
+  return ["progress", "budget", "resource", "safety", "productivity", "satisfaction"].includes(type);
+}
+
 export const reportService = {
   // Fetch all reports for the current user
   async getReports(): Promise<Report[]> {
@@ -112,7 +129,9 @@ export const reportService = {
       .order("generated_at", { ascending: false });
 
     if (error) throw error;
-    return data as Report[] || [];
+    
+    // Convert each report to our expected format
+    return (data || []).map(report => convertToReport(report));
   },
 
   // Fetch a single report by ID
@@ -124,7 +143,7 @@ export const reportService = {
       .single();
 
     if (error) throw error;
-    return data as Report;
+    return data ? convertToReport(data) : null;
   },
 
   // Generate and save a new report
@@ -153,7 +172,7 @@ export const reportService = {
       .single();
     
     if (error) throw error;
-    return data as Report;
+    return convertToReport(data);
   },
 
   // Delete a report
