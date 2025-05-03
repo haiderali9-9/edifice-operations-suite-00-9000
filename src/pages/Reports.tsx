@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import PageLayout from "@/components/layout/PageLayout";
@@ -29,7 +28,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Popover,
@@ -49,14 +47,13 @@ import { reportService, Report, ReportParams } from "@/services/reportService";
 import { useAuth } from "@/contexts/AuthContext";
 import ReportDisplay from "@/components/reports/ReportDisplay";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/lib/supabase";
+import { DateRange } from "react-day-picker";
 
 const Reports = () => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: undefined,
     to: undefined,
   });
@@ -151,8 +148,8 @@ const Reports = () => {
       const params: ReportParams = {
         type: reportType,
         projectId: selectedProjectId || undefined,
-        dateRangeStart: dateRange.from,
-        dateRangeEnd: dateRange.to,
+        dateRangeStart: dateRange?.from,
+        dateRangeEnd: dateRange?.to,
       };
 
       // Generate and save the report
@@ -246,7 +243,7 @@ const Reports = () => {
             <PopoverTrigger asChild>
               <Button variant="outline">
                 <Calendar className="h-4 w-4 mr-2" /> 
-                {dateRange.from ? (
+                {dateRange?.from ? (
                   dateRange.to ? (
                     <>
                       {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
@@ -262,10 +259,7 @@ const Reports = () => {
             <PopoverContent className="w-auto p-0" align="end">
               <CalendarComponent
                 mode="range"
-                selected={{
-                  from: dateRange.from,
-                  to: dateRange.to,
-                }}
+                selected={dateRange}
                 onSelect={setDateRange}
                 initialFocus
               />

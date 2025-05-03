@@ -11,7 +11,7 @@ export const projectService = {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return data as Project[] || [];
   },
   
   // Get a single project by ID
@@ -23,7 +23,7 @@ export const projectService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Project;
   },
   
   // Create a new project
@@ -35,7 +35,7 @@ export const projectService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Project;
   },
   
   // Update an existing project
@@ -48,7 +48,7 @@ export const projectService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Project;
   },
   
   // Delete a project

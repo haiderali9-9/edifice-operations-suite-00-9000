@@ -1,4 +1,3 @@
-
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
 
@@ -113,7 +112,7 @@ export const reportService = {
       .order("generated_at", { ascending: false });
 
     if (error) throw error;
-    return data || [];
+    return data as Report[] || [];
   },
 
   // Fetch a single report by ID
@@ -125,7 +124,7 @@ export const reportService = {
       .single();
 
     if (error) throw error;
-    return data;
+    return data as Report;
   },
 
   // Generate and save a new report
@@ -154,7 +153,7 @@ export const reportService = {
       .single();
     
     if (error) throw error;
-    return data;
+    return data as Report;
   },
 
   // Delete a report
