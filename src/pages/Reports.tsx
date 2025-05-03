@@ -147,7 +147,7 @@ const Reports = () => {
     try {
       const params: ReportParams = {
         type: reportType,
-        projectId: selectedProjectId || undefined,
+        projectId: selectedProjectId === "all" ? undefined : selectedProjectId || undefined,
         dateRangeStart: dateRange?.from,
         dateRangeEnd: dateRange?.to,
       };
@@ -407,7 +407,7 @@ const Reports = () => {
             <SelectValue placeholder="All Projects" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Projects</SelectItem>
+            <SelectItem value="all">All Projects</SelectItem>
             {projects.map((project: any) => (
               <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
             ))}
